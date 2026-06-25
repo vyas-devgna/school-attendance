@@ -196,7 +196,8 @@ function connectSignaling(peerId, { dispatch, iceServers }) {
             wireChannel(channel, dispatch);
           });
 
-          pc.setRemoteDescription(msg.payload.sdp, msg.payload.type || 'offer');
+          const sdpStr = typeof msg.payload.sdp === 'object' ? msg.payload.sdp.sdp : msg.payload.sdp;
+          pc.setRemoteDescription(sdpStr, msg.payload.type || 'offer');
         } catch (err) {
           console.error(`[WebRTC] Error setting up PeerConnection:`, err.message);
           safeSend(ws, {
@@ -212,7 +213,8 @@ function connectSignaling(peerId, { dispatch, iceServers }) {
         const peer = activePeers.get(clientSrc);
         if (peer) {
           try {
-            peer.pc.addRemoteCandidate(msg.payload.candidate, msg.payload.sdpMid || '0');
+            const candStr = typeof msg.payload.candidate === 'object' ? msg.payload.candidate.candidate : msg.payload.candidate;
+            peer.pc.addRemoteCandidate(candStr, msg.payload.sdpMid || '0');
           } catch (err) {
             console.error(`[WebRTC] Error adding remote candidate:`, err.message);
           }

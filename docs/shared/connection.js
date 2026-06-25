@@ -63,7 +63,7 @@
               dst: serverPeerId,
               src: clientId,
               token: token,
-              payload: { candidate: e.candidate.toJSON(), type: 'candidate', sdpMid: e.candidate.sdpMid }
+              payload: { candidate: e.candidate.candidate, type: 'candidate', sdpMid: e.candidate.sdpMid }
             }));
           }
         };
@@ -79,16 +79,18 @@
                 dst: serverPeerId,
                 src: clientId,
                 token: token,
-                payload: { sdp: pc.localDescription, type: 'offer' }
+                payload: { sdp: pc.localDescription.sdp, type: 'offer' }
               }));
             } catch { finish(false); }
           } else if (m.type === 'ANSWER' && m.payload?.sdp) {
             try {
-              await pc.setRemoteDescription(m.payload.sdp);
+              const sdpData = typeof m.payload.sdp === 'string' ? m.payload.sdp : m.payload.sdp.sdp;
+              await pc.setRemoteDescription({ type: m.payload.type || 'answer', sdp: sdpData });
             } catch {}
           } else if (m.type === 'CANDIDATE' && m.payload?.candidate) {
             try {
-              await pc.addIceCandidate(m.payload.candidate);
+              const candStr = typeof m.payload.candidate === 'string' ? m.payload.candidate : m.payload.candidate.candidate;
+              await pc.addIceCandidate({ candidate: candStr, sdpMid: m.payload.sdpMid || '0' });
             } catch {}
           }
         };
