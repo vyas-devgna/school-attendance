@@ -21,7 +21,14 @@ function loadDb() {
   if (!fs.existsSync(DB_PATH)) return null;
   return JSON.parse(fs.readFileSync(DB_PATH, 'utf8'));
 }
-function saveDb() { fs.writeFileSync(DB_PATH, JSON.stringify(db, null, 2)); }
+function saveDb() {
+  // ponytail: atomic write — temp file then rename, so a crash mid-write can't corrupt db.json
+  const tmp = DB_PATH + '.tmp';
+  const json = JSON.stringify(db, null, 2);
+  JSON.parse(json); // guard: never persist something we can't read back
+  fs.writeFileSync(tmp, json);
+  fs.renameSync(tmp, DB_PATH);
+}
 function addLog(action, userId, detail) {
   db.log.push({ action, userId: userId || 'system', timestamp: new Date().toISOString(), detail: detail || '' });
   if (db.log.length > 5000) db.log = db.log.slice(-4000); // ponytail: cap log size

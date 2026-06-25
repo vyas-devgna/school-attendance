@@ -1,0 +1,10 @@
+# Dependencies
+node_modules/
+
+# Runtime data — NEVER commit real student/attendance data to a public repo
+server/db.json
+server/backups/
+
+# Vendored build artifacts that are regenerated
+*.log
+.DS_Store
