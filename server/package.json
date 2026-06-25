@@ -10,8 +10,8 @@
   "dependencies": {
     "cors": "^2.8.5",
     "express": "^4.21.0",
-    "localtunnel": "^2.0.2",
     "node-datachannel": "^0.32.3",
+    "peerjs": "^1.5.5",
     "qrcode": "^1.5.4",
     "ws": "^8.21.0"
   },

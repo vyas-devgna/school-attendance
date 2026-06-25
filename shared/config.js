@@ -5,10 +5,9 @@
 
   ATT.VERSION = '2.1.0';
 
-  // Default public endpoint for remote (off-LAN) use. This is the STABLE localtunnel
-  // subdomain the server requests on startup, so saved pairings survive restarts.
-  // If you switch tunnels, change this one line (and re-deploy /docs).
-  ATT.PUBLIC_SERVER = 'https://vyas-devgna-att.loca.lt';
+  // Default public endpoint for remote (off-LAN) use. This is no longer needed for REST
+  // since all remote (off-LAN) communication now goes through WebRTC signaling via PeerJS.
+  ATT.PUBLIC_SERVER = '';
 
   ATT.ICE = [{ urls: 'stun:stun.l.google.com:19302' }];
 

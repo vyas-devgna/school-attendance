@@ -25,7 +25,7 @@
     ATT.conn.setEndpoint(base, null);
 
     // Try the WebRTC pipeline first (the requested transport); silently fall back to REST.
-    await ATT.conn.connectWebRTC().catch(() => {});
+    await ATT.conn.connectWebRTC('vyas-school-att').catch(() => {});
 
     const body = { deviceId, appType: expectApp };
     if (token) body.token = token; else body.code = code;
@@ -52,16 +52,31 @@
     const p = get();
     if (!p) return null;
     const base = ATT.isLocalServed() ? location.origin : p.server;
-    // Verify server identity before sending the saved connection key.
+    
+    // Set endpoint with null token first for verification
     ATT.conn.setEndpoint(base, null);
+
+    if (!ATT.isLocalServed() && p.fingerprint) {
+      // Remote devices must use WebRTC to reach the server.
+      // Connect WebRTC using the unique fingerprint-based PeerJS ID.
+      await ATT.conn.connectWebRTC('vyas-school-att-' + p.fingerprint).catch(() => {});
+    }
+
+    // Now request server-info (either via WebRTC if connected, or LAN REST if on LAN)
     let info;
-    try { info = await ATT.conn.request('/api/server-info'); }
-    catch { return p; }
+    try {
+      info = await ATT.conn.request('/api/server-info');
+    } catch (e) {
+      // If we are remote and WebRTC failed, we cannot connect right now.
+      return p;
+    }
+
     if (p.fingerprint && info.fingerprint !== p.fingerprint) {
       throw new Error('This is not the paired school server. Ask the admin to pair this device again.');
     }
+
+    // Server verified! Now set the real device token for authenticated requests.
     ATT.conn.setEndpoint(base, p.deviceToken);
-    if (!ATT.isLocalServed()) await ATT.conn.connectWebRTC().catch(() => {});
     return p;
   }
 

@@ -20,19 +20,35 @@
 
   // Bring up the WebRTC pipeline. Resolves true if the DataChannel opens, false otherwise.
   // Failure is non-fatal — request() transparently uses REST.
-  function connectWebRTC(timeoutMs) {
+  function connectWebRTC(serverPeerId, timeoutMs) {
+    if (typeof serverPeerId === 'number') {
+      timeoutMs = serverPeerId;
+      serverPeerId = 'vyas-school-att';
+    }
+    serverPeerId = serverPeerId || 'vyas-school-att';
     timeoutMs = timeoutMs || 8000;
     teardown();
-    if (!('RTCPeerConnection' in window) || !serverUrl) return Promise.resolve(false);
+    if (!('RTCPeerConnection' in window)) return Promise.resolve(false);
     return new Promise((resolve) => {
       let settled = false;
       const finish = (v) => { if (!settled) { settled = true; resolve(v); } };
       try {
-        ws = new WebSocket(wsUrl());
+        const clientId = 'att-client-' + Math.random().toString(36).slice(2, 10);
+        const token = Math.random().toString(36).slice(2, 10);
+        const signalingUrl = 'wss://0.peerjs.com/peerjs?key=peerjs&id=' + clientId + '&token=' + token + '&version=1.4.7';
+
+        ws = new WebSocket(signalingUrl);
         pc = new RTCPeerConnection({ iceServers: ATT.ICE });
         dc = pc.createDataChannel('api');
 
-        dc.onopen = () => { dcReady = true; mode = 'webrtc'; finish(true); };
+        dc.onopen = () => {
+          dcReady = true;
+          mode = 'webrtc';
+          // Close signaling socket once WebRTC is established to save resources.
+          try { ws && ws.close(); } catch {}
+          ws = null;
+          finish(true);
+        };
         dc.onclose = () => { dcReady = false; };
         dc.onmessage = (e) => {
           let m; try { m = JSON.parse(e.data); } catch { return; }
@@ -41,24 +57,42 @@
         };
 
         pc.onicecandidate = (e) => {
-          if (e.candidate && ws.readyState === 1) ws.send(JSON.stringify({ type: 'ice', candidate: e.candidate.toJSON() }));
+          if (e.candidate && ws && ws.readyState === 1) {
+            ws.send(JSON.stringify({
+              type: 'CANDIDATE',
+              dst: serverPeerId,
+              src: clientId,
+              token: token,
+              payload: { candidate: e.candidate.toJSON(), type: 'candidate', sdpMid: e.candidate.sdpMid }
+            }));
+          }
         };
 
-        ws.onopen = async () => {
-          try {
-            const offer = await pc.createOffer();
-            await pc.setLocalDescription(offer);
-            ws.send(JSON.stringify({ type: 'offer', sdp: pc.localDescription }));
-          } catch { finish(false); }
-        };
         ws.onmessage = async (e) => {
           let m; try { m = JSON.parse(e.data); } catch { return; }
-          try {
-            if (m.type === 'answer') await pc.setRemoteDescription(m.sdp);
-            else if (m.type === 'ice' && m.candidate) await pc.addIceCandidate(m.candidate);
-          } catch {}
+          if (m.type === 'OPEN') {
+            try {
+              const offer = await pc.createOffer();
+              await pc.setLocalDescription(offer);
+              ws.send(JSON.stringify({
+                type: 'OFFER',
+                dst: serverPeerId,
+                src: clientId,
+                token: token,
+                payload: { sdp: pc.localDescription, type: 'offer' }
+              }));
+            } catch { finish(false); }
+          } else if (m.type === 'ANSWER' && m.payload?.sdp) {
+            try {
+              await pc.setRemoteDescription(m.payload.sdp);
+            } catch {}
+          } else if (m.type === 'CANDIDATE' && m.payload?.candidate) {
+            try {
+              await pc.addIceCandidate(m.payload.candidate);
+            } catch {}
+          }
         };
-        ws.onerror = () => finish(dcReady);
+        ws.onerror = () => { if (!dcReady) finish(false); };
         ws.onclose = () => { if (!dcReady) finish(false); };
 
         setTimeout(() => finish(dcReady), timeoutMs);

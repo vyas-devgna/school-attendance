@@ -8,7 +8,7 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
-const localtunnel = require('localtunnel');
+
 const uuid = () => crypto.randomUUID();
 
 const app = express();
@@ -194,11 +194,11 @@ function serverInfo() {
     // and are delivered only to authenticated devices via /api/me.
     iceServers: ICE_SERVERS.filter(s => !s.credential),
     endpoints: {
-      public: global.TUNNEL_URL || null,
+      public: null,
       lan: `http://${getLanIp()}:${PORT}`,
       local: `http://localhost:${PORT}`,
     },
-    tunnelStatus: global.TUNNEL_URL ? 'up' : 'down',
+    tunnelStatus: 'down',
   };
 }
 app.get('/api/server-info', (_req, res) => res.json(serverInfo()));
@@ -1126,26 +1126,7 @@ if (!db) {
 if (db.settings?.setupDone) createBackup();
 setInterval(() => { if (db.settings?.setupDone) createBackup(); }, 24 * 60 * 60 * 1000);
 
-async function startTunnel() {
-  // ponytail: stable subdomain so the public URL survives restarts; fall back to random.
-  for (const sub of [TUNNEL_SUBDOMAIN, undefined]) {
-    try {
-      const tunnel = await localtunnel({ port: PORT, subdomain: sub });
-      global.TUNNEL = tunnel;
-      global.TUNNEL_URL = tunnel.url;
-      global.TUNNEL_ERROR = null;
-      console.log(`\n  Public URL (Remote Access): ${tunnel.url}` + (sub ? '' : '  [random fallback — fixed subdomain was unavailable]') + '\n');
-      tunnel.on('close', () => { console.log('  Tunnel closed — retrying in 10s'); global.TUNNEL_URL = null; setTimeout(startTunnel, 10000); });
-      tunnel.on('error', (e) => { global.TUNNEL_ERROR = e.message; });
-      return;
-    } catch (err) {
-      global.TUNNEL_ERROR = err.message;
-      console.error(`  Tunnel (${sub || 'random'}) failed:`, err.message);
-    }
-  }
-  console.error('  Remote access is OFF. Local + LAN still work. Retrying in 30s.');
-  setTimeout(startTunnel, 30000);
-}
+
 
 const server = http.createServer(app);
 let signalling = null;
@@ -1170,18 +1151,15 @@ server.listen(PORT, '0.0.0.0', () => {
   if (db.settings?.setupDone) {
     console.log(`\n  ${db.settings.schoolName} — Users: ${db.users.length} | Classes: ${db.classes.length} | Students: ${db.students.length}`);
   }
-  // WebRTC signalling pipeline over the same HTTP server
+  // WebRTC signalling pipeline over PeerJS public server
   if (!process.env.NO_SIGNAL) {
     const signal = require('./signal');
     cleanupRtc = signal.cleanupRtc;
-    signalling = signal.attachSignal(server, { dispatch, iceServers: ICE_SERVERS });
+    signalling = signal.attachSignal(server, { dispatch, iceServers: ICE_SERVERS, fingerprint: db.settings.fingerprint });
   }
-  if (process.env.NO_TUNNEL) console.log('  (tunnel disabled via NO_TUNNEL)');
-  else startTunnel();
 });
 
 function shutdown() {
-  try { global.TUNNEL?.close(); } catch {}
   try { signalling?.close(); } catch {}
   server.close(() => {
     cleanupRtc();
