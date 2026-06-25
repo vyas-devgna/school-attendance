@@ -8,3 +8,6 @@ server/backups/
 # Vendored build artifacts that are regenerated
 *.log
 .DS_Store
+
+# Test/tooling artifacts
+.playwright-mcp/

@@ -1,7 +1,0 @@
-- generic [ref=e2]:
-  - img [ref=e3]
-  - heading "School Attendance" [level=1] [ref=e7]
-  - paragraph [ref=e8]: Install this app first to use the school attendance system.
-  - button "Install App" [ref=e9] [cursor=pointer]:
-    - img [ref=e10]
-    - text: Install App
