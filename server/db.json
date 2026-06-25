@@ -740,8 +740,23 @@
     }
   ],
   "devices": [],
-  "enrollmentTokens": [],
+  "enrollmentTokens": [
+    {
+      "token": "4ece5071-b2bf-44a8-b0fa-6cec0b5b212b",
+      "code": "147571",
+      "userId": "admin-1",
+      "createdAt": "2026-06-25T14:11:22.830Z",
+      "used": false
+    }
+  ],
   "attendance": [],
   "corrections": [],
-  "log": []
+  "log": [
+    {
+      "action": "student_toggle",
+      "userId": "system",
+      "timestamp": "2026-06-25T14:06:04.605Z",
+      "detail": "Tejal Panchal → inactive"
+    }
+  ]
 }

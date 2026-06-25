@@ -287,7 +287,8 @@
   let adminPairing = null; // { server, deviceId }
 
   // --- Install gate ---
-  const isInstalled = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+  const isLocalHost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+  const isInstalled = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true || isLocalHost;
   let deferredPrompt = null;
   window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); deferredPrompt = e; });
   window.triggerInstall = function() {
