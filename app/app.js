@@ -150,6 +150,8 @@
       ATT.pairing.save(pairing);
       setState('connected');
       try { myAssignments = await api('/my-assignments'); } catch { myAssignments = pairing.user?.assignments || []; }
+      try { LS.set('settings', await api('/settings')); } catch {}
+      try { LS.set('holidays', await api('/holidays')); } catch {}
       setupHomeScreen(user);
     } catch (e) {
       if (e.message === 'revoked') return;
@@ -219,6 +221,7 @@
     try { const me = await api('/me'); if (me.iceServers) ATT.ICE = me.iceServers; } catch {}
     try { myAssignments = await api('/my-assignments'); } catch { myAssignments = pairing.user?.assignments || []; }
     try { const settings = await api('/settings'); LS.set('settings', settings); } catch {}
+    try { LS.set('holidays', await api('/holidays')); } catch {}
     setupHomeScreen(pairing.user);
   }
 
@@ -405,6 +408,17 @@
     }
 
     const locked = isDateLocked(date);
+
+    // Holiday warning — informative, does not block marking (edge 85)
+    const holiday = (LS.get('holidays') || []).find(h => h.date === date);
+    if (holiday && !locked) {
+      blockMsg.textContent = `Note: ${date} is a holiday (${holiday.name}). Mark attendance only if school was open.`;
+      blockMsg.style.background = 'rgba(234, 179, 8, 0.1)';
+      blockMsg.style.borderColor = 'var(--yellow)';
+      blockMsg.style.color = 'var(--yellow)';
+      blockMsg.classList.remove('hidden');
+    }
+
     if (locked) {
       blockMsg.textContent = 'Attendance is locked. To correct attendance, use the "Request Correction" button next to a student.';
       blockMsg.style.background = 'rgba(234, 179, 8, 0.1)';
@@ -500,6 +514,12 @@
   window.saveAttendance = async function () {
     const date = document.getElementById('attDate').value;
     if (!currentClassId || !date) return;
+
+    // Unusual-pattern guard: confirm if everyone is marked absent (edge 80)
+    const marked = students.map(s => attendance[s.id]?.status || 'absent');
+    if (marked.length && marked.every(st => st === 'absent')) {
+      if (!confirm('All students are marked Absent. Is that correct?')) return;
+    }
 
     // Stamp a fresh op-id per record for this save: retries of THIS save dedupe on the
     // server; a later edit gets new ids and syncs as an update (idempotency, edges 47-48).

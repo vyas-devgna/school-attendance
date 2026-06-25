@@ -219,6 +219,12 @@ app.post('/api/setup', (req, res) => {
     classes: [], students: [], assignments: [], devices: [], enrollmentTokens: [],
     attendance: [], corrections: [], log: [], holidays: [],
   };
+  if (demoData) {
+    const cls = [{ id: 'c5a', name: '5', division: 'A', label: '5-A' }, { id: 'c5b', name: '5', division: 'B', label: '5-B' }];
+    db.classes.push(...cls);
+    const names = ['Aarav Patel', 'Diya Shah', 'Vivaan Mehta', 'Isha Joshi', 'Kabir Desai', 'Riya Bhatt'];
+    for (const c of cls) names.forEach((n, i) => db.students.push({ id: uuid(), studentId: '', name: n, rollNo: i + 1, classId: c.id, guardianName: '', phone: '', active: true }));
+  }
   saveDb();
   addLog('setup', null, schoolName);
   res.json({ ok: true });
