@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#6366f1">
+  <meta name="description" content="School attendance marking app">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <title>Attendance</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%236366f1'/><text x='50' y='68' font-size='50' text-anchor='middle' fill='white'>✓</text></svg>">
+  <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body>
+
+<!-- Install Gate (shown in browser, hidden when installed) -->
+<div id="installGate" class="install-screen">
+  <i data-lucide="clipboard-check" style="width:64px;height:64px;color:var(--accent)"></i>
+  <h1>School Attendance</h1>
+  <p style="color:var(--muted)">Install this app first to use the school attendance system.</p>
+  <button class="btn-primary" id="btnInstall" onclick="triggerInstall()" style="max-width:300px">
+    <i data-lucide="download" style="width:18px;height:18px"></i> Install App
+  </button>
+  <div id="manualSteps" class="steps hidden">
+    <p style="margin-bottom:8px;font-weight:600">How to install:</p>
+    <ol>
+      <li>Tap the <strong>⋮ menu</strong> (three dots) in your browser</li>
+      <li>Tap <strong>"Add to Home screen"</strong> or <strong>"Install app"</strong></li>
+      <li>Tap <strong>Install</strong></li>
+      <li>Open the app from your home screen</li>
+    </ol>
+  </div>
+</div>
+
+<!-- Real App (hidden until installed) -->
+<div class="app hidden" id="realApp">
+
+  <!-- Header -->
+  <div class="header">
+    <i data-lucide="clipboard-check" style="color:var(--accent);width:20px;height:20px"></i>
+    <h1 id="headerTitle">Attendance</h1>
+    <div class="status-dot status-offline" id="statusDot" title="Offline"></div>
+  </div>
+
+  <!-- Screen: Scan/Pair -->
+  <div class="screen" id="screen-scan">
+    <div class="scan-area">
+      <i data-lucide="scan-line" style="width:48px;height:48px;color:var(--accent)"></i>
+      <p>Scan the enrollment QR code<br>shown on the admin screen</p>
+      <video id="scanVideo" autoplay playsinline class="hidden"></video>
+      <button class="btn-primary" id="btnStartScan" onclick="startScan()">
+        <i data-lucide="camera" style="width:18px;height:18px"></i> Scan QR Code
+      </button>
+      <div style="width:100%;text-align:center;color:var(--muted);font-size:.8rem;margin:4px 0">— or enter pairing code —</div>
+      <div style="width:100%">
+        <label>6-Digit Pairing Code</label>
+        <input id="manualCode" type="text" inputmode="numeric" maxlength="6" pattern="[0-9]{6}" placeholder="000000" style="font-size:1.5rem;text-align:center;letter-spacing:.3em;font-weight:700">
+        <button class="btn-primary btn-block" onclick="manualEnroll()">
+          <i data-lucide="link" style="width:16px;height:16px"></i> Pair Device
+        </button>
+      </div>
+      <p id="scanStatus" style="color:var(--red)"></p>
+    </div>
+  </div>
+
+  <!-- Screen: Revoked -->
+  <div class="screen" id="screen-revoked">
+    <div class="scan-area">
+      <i data-lucide="shield-off" style="width:48px;height:48px;color:var(--red)"></i>
+      <p style="color:var(--red)">This device has been revoked.<br>Contact your administrator.</p>
+      <button class="btn-outline" onclick="unpair()">Clear Pairing</button>
+    </div>
+  </div>
+
+  <!-- Screen: Home -->
+  <div class="screen" id="screen-home">
+    <div class="card">
+      <p style="font-size:.85rem;color:var(--muted)" id="welcomeMsg">Welcome</p>
+      <div id="assignmentSelectorContainer" class="hidden" style="margin:8px 0">
+        <label style="font-size:.75rem;color:var(--muted)">Active Class/Subject</label>
+        <select id="assignmentSelector" onchange="changeAssignment(this.value)" style="margin:4px 0 0;padding:6px 8px"></select>
+      </div>
+      <p style="font-size:1.1rem;font-weight:600" id="className"></p>
+      <p style="font-size:.75rem;color:var(--muted);margin-top:4px" id="todayDate"></p>
+    </div>
+    <div id="statusBanner" class="hidden"></div>
+
+    <!-- Home: Quick Actions -->
+    <div id="page-home">
+      <div class="action-cards" id="homeActions"></div>
+    </div>
+
+    <!-- Home: Mark Attendance -->
+    <div id="page-mark" class="scroll hidden">
+      <div class="flex-between mb-8">
+        <input type="date" id="attDate" style="margin:0;flex:1;max-width:160px">
+        <button class="btn-sm btn-success" id="btnAllPresent" onclick="markAllPresent()">All Present</button>
+      </div>
+      <div id="blockMessage" class="card mb-12 hidden" style="background:rgba(239,68,68,0.1);border:1px solid var(--red);color:var(--red);padding:12px;font-size:0.85rem;font-weight:600"></div>
+      <div class="card" style="padding:0" id="studentList"></div>
+      <button class="btn-primary mt-12 btn-block" id="btnSaveAttendance" onclick="saveAttendance()">
+        <i data-lucide="save" style="width:16px;height:16px"></i> Save Attendance
+      </button>
+    </div>
+
+    <!-- Home: Reports -->
+    <div id="page-reports" class="scroll hidden">
+      <div class="card">
+        <h2>Reports</h2>
+        <div style="display:flex;gap:8px;margin-bottom:12px">
+          <select id="teacherReportType" onchange="changeTeacherReport()" style="margin:0;flex:1">
+            <option value="summary">Class Summary</option>
+            <option value="daily">Daily Attendance</option>
+            <option value="weekly">Weekly View</option>
+            <option value="monthly">Monthly View</option>
+          </select>
+          <input type="date" id="teacherReportDate" onchange="changeTeacherReport()" style="margin:0;max-width:130px" class="hidden">
+          <input type="month" id="teacherReportMonth" onchange="changeTeacherReport()" style="margin:0;max-width:130px" class="hidden">
+        </div>
+        <div style="overflow-x:auto" id="summaryTable"></div>
+      </div>
+    </div>
+
+    <!-- Home: Student List -->
+    <div id="page-students" class="scroll hidden">
+      <div class="card">
+        <h2>Students</h2>
+        <div id="studentRoster"></div>
+      </div>
+    </div>
+
+    <!-- Home: Info/Settings -->
+    <div id="page-info" class="hidden">
+      <div class="card">
+        <p style="font-size:.8rem;color:var(--muted)">Role</p>
+        <p id="infoRole" style="font-size:.85rem"></p>
+        <p style="font-size:.8rem;color:var(--muted);margin-top:8px">Server</p>
+        <p style="font-size:.75rem;word-break:break-all" id="infoServer"></p>
+        <p style="font-size:.8rem;color:var(--muted);margin-top:8px">Pending Syncs</p>
+        <p id="infoPending">0</p>
+      </div>
+      <button class="btn-danger btn-block" onclick="unpair()">
+        <i data-lucide="log-out" style="width:16px;height:16px"></i> Clear Pairing
+      </button>
+    </div>
+  </div>
+
+  <!-- Bottom Navigation -->
+  <div class="bottom-nav hidden" id="bottomNav">
+    <button class="active" onclick="showPage('home',this)">
+      <i data-lucide="home" style="width:20px;height:20px"></i>Home
+    </button>
+    <button onclick="showPage('mark',this)">
+      <i data-lucide="check-square" style="width:20px;height:20px"></i>Attendance
+    </button>
+    <button onclick="showPage('reports',this)" id="navReports">
+      <i data-lucide="bar-chart-3" style="width:20px;height:20px"></i>Reports
+    </button>
+    <button onclick="showPage('students',this)" id="navStudents">
+      <i data-lucide="users" style="width:20px;height:20px"></i>Students
+    </button>
+    <button onclick="showPage('info',this)">
+      <i data-lucide="settings" style="width:20px;height:20px"></i>Settings
+    </button>
+  </div>
+
+  <!-- Footer -->
+  <div class="footer" id="footerStatus">Not connected</div>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>

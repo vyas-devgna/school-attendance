@@ -1,0 +1,747 @@
+{
+  "settings": {
+    "schoolName": "Sunrise School, Anand",
+    "academicYear": "2025-26",
+    "terms": [
+      {
+        "name": "Term 1",
+        "start": "2025-06-16",
+        "end": "2025-10-15"
+      },
+      {
+        "name": "Term 2",
+        "start": "2025-10-27",
+        "end": "2026-03-15"
+      }
+    ],
+    "lockAfterHours": 24,
+    "setupDone": true
+  },
+  "users": [
+    {
+      "id": "admin-1",
+      "name": "Admin",
+      "role": "admin",
+      "active": true
+    },
+    {
+      "id": "ct-1",
+      "name": "Mrs. Sharma",
+      "role": "class_teacher",
+      "active": true
+    },
+    {
+      "id": "ct-2",
+      "name": "Mr. Patel",
+      "role": "class_teacher",
+      "active": true
+    },
+    {
+      "id": "ct-3",
+      "name": "Mrs. Desai",
+      "role": "class_teacher",
+      "active": true
+    },
+    {
+      "id": "st-1",
+      "name": "Ms. Mehta",
+      "role": "subject_teacher",
+      "active": true
+    },
+    {
+      "id": "st-2",
+      "name": "Mr. Trivedi",
+      "role": "subject_teacher",
+      "active": true
+    }
+  ],
+  "classes": [
+    {
+      "id": "c5a",
+      "name": "5",
+      "division": "A",
+      "label": "5-A"
+    },
+    {
+      "id": "c5b",
+      "name": "5",
+      "division": "B",
+      "label": "5-B"
+    },
+    {
+      "id": "c6a",
+      "name": "6",
+      "division": "A",
+      "label": "6-A"
+    }
+  ],
+  "students": [
+    {
+      "id": "a6526074-37e7-4475-b650-c3257f5a6974",
+      "name": "Tejal Panchal",
+      "rollNo": 1,
+      "classId": "c5a",
+      "active": true
+    },
+    {
+      "id": "c84d29e6-eed0-42b3-8856-11c45c755ba1",
+      "name": "Jinal Panchal",
+      "rollNo": 2,
+      "classId": "c5a",
+      "active": true
+    },
+    {
+      "id": "6f364796-0b7d-4ac3-9c3d-07b1187bb049",
+      "name": "Sahil Solanki",
+      "rollNo": 3,
+      "classId": "c5a",
+      "active": true
+    },
+    {
+      "id": "b0ca90a6-a8c4-4294-8f04-0f4c8998aee6",
+      "name": "Yash Bhatt",
+      "rollNo": 4,
+      "classId": "c5a",
+      "active": true
+    },
+    {
+      "id": "9e94dc44-a791-40d6-9dd4-e6b24937780d",
+      "name": "Pooja Thakkar",
+      "rollNo": 5,
+      "classId": "c5a",
+      "active": true
+    },
+    {
+      "id": "804eb167-6304-4cd1-a058-a3403748ff02",
+      "name": "Aadhya Panchal",
+      "rollNo": 6,
+      "classId": "c5a",
+      "active": true
+    },
+    {
+      "id": "0d13a3bb-e993-485c-b8f9-d3f0afd42f12",
+      "name": "Ananya Kothari",
+      "rollNo": 7,
+      "classId": "c5a",
+      "active": true
+    },
+    {
+      "id": "0187da2a-f5b0-4d66-b3d0-7316db0b8054",
+      "name": "Divya Dave",
+      "rollNo": 8,
+      "classId": "c5a",
+      "active": true
+    },
+    {
+      "id": "2e8c784c-f10e-46b7-933a-62f87c3777a2",
+      "name": "Jinal Joshi",
+      "rollNo": 9,
+      "classId": "c5a",
+      "active": true
+    },
+    {
+      "id": "93ad1d67-0635-43c3-af34-c335bd378dc6",
+      "name": "Harsh Mehta",
+      "rollNo": 10,
+      "classId": "c5a",
+      "active": true
+    },
+    {
+      "id": "75d9cfcd-02ae-4d69-8d22-7d2e708d900b",
+      "name": "Sai Mehta",
+      "rollNo": 11,
+      "classId": "c5a",
+      "active": true
+    },
+    {
+      "id": "eda34c13-8940-43b1-b18c-92d32651a12a",
+      "name": "Meera Chauhan",
+      "rollNo": 12,
+      "classId": "c5a",
+      "active": true
+    },
+    {
+      "id": "3f4600ec-83b5-4f83-a723-b023209e994e",
+      "name": "Parth Kothari",
+      "rollNo": 13,
+      "classId": "c5a",
+      "active": true
+    },
+    {
+      "id": "8b646232-bf5f-4d98-ae26-bf3c14438628",
+      "name": "Meera Chauhan",
+      "rollNo": 14,
+      "classId": "c5a",
+      "active": true
+    },
+    {
+      "id": "59b60fb6-48af-4177-96b4-0c27836f6f58",
+      "name": "Sai Shah",
+      "rollNo": 15,
+      "classId": "c5a",
+      "active": true
+    },
+    {
+      "id": "bd22042a-b45b-4361-b163-27c6a09e34c4",
+      "name": "Isha Trivedi",
+      "rollNo": 16,
+      "classId": "c5a",
+      "active": true
+    },
+    {
+      "id": "4a0ba310-6d42-44e0-aa1a-e62682cb89c9",
+      "name": "Sai Bhatt",
+      "rollNo": 17,
+      "classId": "c5a",
+      "active": true
+    },
+    {
+      "id": "2c6800c1-371e-4c46-bc57-7362540e6429",
+      "name": "Jay Bhatt",
+      "rollNo": 18,
+      "classId": "c5a",
+      "active": true
+    },
+    {
+      "id": "61e6e562-29d5-4118-9b78-efbb9bdad954",
+      "name": "Minal Pandya",
+      "rollNo": 19,
+      "classId": "c5a",
+      "active": true
+    },
+    {
+      "id": "f0b93deb-b85d-4b19-9759-b6b9c5554aa9",
+      "name": "Diya Vyas",
+      "rollNo": 20,
+      "classId": "c5a",
+      "active": true
+    },
+    {
+      "id": "81ef542e-574b-449c-b64f-b7c94ae968b4",
+      "name": "Minal Kothari",
+      "rollNo": 21,
+      "classId": "c5a",
+      "active": true
+    },
+    {
+      "id": "b6769fd9-16a6-4259-ab2e-deea3b385326",
+      "name": "Ananya Trivedi",
+      "rollNo": 22,
+      "classId": "c5a",
+      "active": true
+    },
+    {
+      "id": "6d3096cf-2adb-426d-9d00-3f1e6834526f",
+      "name": "Arnav Mehta",
+      "rollNo": 23,
+      "classId": "c5a",
+      "active": true
+    },
+    {
+      "id": "5e1da958-81d8-474d-942b-13d5152ca90c",
+      "name": "Komal Solanki",
+      "rollNo": 24,
+      "classId": "c5a",
+      "active": true
+    },
+    {
+      "id": "b943774e-f28a-4ed8-8d62-a09061edc598",
+      "name": "Riddhi Desai",
+      "rollNo": 25,
+      "classId": "c5a",
+      "active": true
+    },
+    {
+      "id": "14947ac3-1e00-426d-9f4c-8df325f96abf",
+      "name": "Aditya Patel",
+      "rollNo": 26,
+      "classId": "c5a",
+      "active": true
+    },
+    {
+      "id": "a3048031-4d01-4366-bd4c-2c48dfb25537",
+      "name": "Sai Dave",
+      "rollNo": 27,
+      "classId": "c5a",
+      "active": true
+    },
+    {
+      "id": "2e3fcad9-7d7a-4345-909d-2cc91d87590f",
+      "name": "Pooja Patel",
+      "rollNo": 28,
+      "classId": "c5a",
+      "active": true
+    },
+    {
+      "id": "322bb7e1-6737-42f2-955e-30d37c9c7ad1",
+      "name": "Kiara Bhatt",
+      "rollNo": 29,
+      "classId": "c5a",
+      "active": true
+    },
+    {
+      "id": "12758ade-f6ff-4e1d-9ab2-1c8954d56009",
+      "name": "Sahil Chauhan",
+      "rollNo": 30,
+      "classId": "c5a",
+      "active": true
+    },
+    {
+      "id": "7722fa98-a52d-41f0-9155-c7295079e3d5",
+      "name": "Ananya Amin",
+      "rollNo": 1,
+      "classId": "c5b",
+      "active": true
+    },
+    {
+      "id": "244f2b85-5549-4d9c-a202-3c0d7f90e36d",
+      "name": "Yash Parikh",
+      "rollNo": 2,
+      "classId": "c5b",
+      "active": true
+    },
+    {
+      "id": "8b0c71a5-0d71-4e3a-b725-d4cefd618ba3",
+      "name": "Sneha Dave",
+      "rollNo": 3,
+      "classId": "c5b",
+      "active": true
+    },
+    {
+      "id": "703a1c90-32e5-4769-b3b4-990e2c034f2a",
+      "name": "Jinal Joshi",
+      "rollNo": 4,
+      "classId": "c5b",
+      "active": true
+    },
+    {
+      "id": "96182043-fa9a-434b-b669-10f59969be51",
+      "name": "Isha Vyas",
+      "rollNo": 5,
+      "classId": "c5b",
+      "active": true
+    },
+    {
+      "id": "36ac48e9-89ee-41d8-aefa-82f363b13906",
+      "name": "Parth Mehta",
+      "rollNo": 6,
+      "classId": "c5b",
+      "active": true
+    },
+    {
+      "id": "669bf2fb-65f5-49c3-a2dd-10f5881b54c2",
+      "name": "Arjun Parikh",
+      "rollNo": 7,
+      "classId": "c5b",
+      "active": true
+    },
+    {
+      "id": "94f93b90-a253-4e51-8c8b-b67247a0e0d5",
+      "name": "Sahil Amin",
+      "rollNo": 8,
+      "classId": "c5b",
+      "active": true
+    },
+    {
+      "id": "4c64b52d-540e-46c3-ae97-a15adc2bf59d",
+      "name": "Hiral Joshi",
+      "rollNo": 9,
+      "classId": "c5b",
+      "active": true
+    },
+    {
+      "id": "f788a7e9-3d22-4f75-9d98-2065e7be664b",
+      "name": "Sahil Patel",
+      "rollNo": 10,
+      "classId": "c5b",
+      "active": true
+    },
+    {
+      "id": "608dc2f2-4683-4121-9fab-dcf3923acd58",
+      "name": "Kiara Modi",
+      "rollNo": 11,
+      "classId": "c5b",
+      "active": true
+    },
+    {
+      "id": "1b6a7bfb-0931-4f1f-a1ab-a7f179835758",
+      "name": "Sara Trivedi",
+      "rollNo": 12,
+      "classId": "c5b",
+      "active": true
+    },
+    {
+      "id": "22088b98-61a3-4334-a6a5-9747e0ebb0d5",
+      "name": "Hiral Raval",
+      "rollNo": 13,
+      "classId": "c5b",
+      "active": true
+    },
+    {
+      "id": "7496be55-bada-4c63-8a91-1e6713139092",
+      "name": "Arnav Pandya",
+      "rollNo": 14,
+      "classId": "c5b",
+      "active": true
+    },
+    {
+      "id": "51f3853a-51aa-4a38-a635-b76fc7f413a5",
+      "name": "Reyansh Kothari",
+      "rollNo": 15,
+      "classId": "c5b",
+      "active": true
+    },
+    {
+      "id": "faf8ee1f-0255-4df6-a401-f23de2e45049",
+      "name": "Arnav Trivedi",
+      "rollNo": 16,
+      "classId": "c5b",
+      "active": true
+    },
+    {
+      "id": "2f224ae1-dca1-4ba5-a798-3e48b5db4fa3",
+      "name": "Arnav Vyas",
+      "rollNo": 17,
+      "classId": "c5b",
+      "active": true
+    },
+    {
+      "id": "fd564090-575f-4ea2-8963-f89a98386219",
+      "name": "Riddhi Bhatt",
+      "rollNo": 18,
+      "classId": "c5b",
+      "active": true
+    },
+    {
+      "id": "02319721-e706-4ee0-9748-e7fb43ed102d",
+      "name": "Pooja Trivedi",
+      "rollNo": 19,
+      "classId": "c5b",
+      "active": true
+    },
+    {
+      "id": "a6ce5103-0dc2-4ab7-8c97-9a06a34c659c",
+      "name": "Arnav Kothari",
+      "rollNo": 20,
+      "classId": "c5b",
+      "active": true
+    },
+    {
+      "id": "7a1985c4-561a-40a1-8066-9d68a5e26985",
+      "name": "Priya Nair",
+      "rollNo": 21,
+      "classId": "c5b",
+      "active": true
+    },
+    {
+      "id": "297ed85a-05dd-4a18-a391-97f109a10fa3",
+      "name": "Tanay Raval",
+      "rollNo": 22,
+      "classId": "c5b",
+      "active": true
+    },
+    {
+      "id": "32ae5750-3887-453b-b9db-93c699e31a6a",
+      "name": "Vivaan Panchal",
+      "rollNo": 23,
+      "classId": "c5b",
+      "active": true
+    },
+    {
+      "id": "3d3821bf-7970-473a-8b57-e702f63d4109",
+      "name": "Minal Vyas",
+      "rollNo": 24,
+      "classId": "c5b",
+      "active": true
+    },
+    {
+      "id": "d37d04ec-bc41-499e-b4ac-425e9b59e63f",
+      "name": "Aadhya Thakkar",
+      "rollNo": 25,
+      "classId": "c5b",
+      "active": true
+    },
+    {
+      "id": "b4770fe8-4ced-47a0-aa31-b7d307bcee24",
+      "name": "Jinal Bhatt",
+      "rollNo": 26,
+      "classId": "c5b",
+      "active": true
+    },
+    {
+      "id": "5cce3f53-5fd0-4f64-a533-3a082d140001",
+      "name": "Minal Dave",
+      "rollNo": 27,
+      "classId": "c5b",
+      "active": true
+    },
+    {
+      "id": "f91d2f2d-6d51-4185-be82-34e1f7bdaff9",
+      "name": "Komal Patel",
+      "rollNo": 28,
+      "classId": "c5b",
+      "active": true
+    },
+    {
+      "id": "371356d6-9ac4-404a-a6f8-4c608d32b587",
+      "name": "Hiral Bhatt",
+      "rollNo": 29,
+      "classId": "c5b",
+      "active": true
+    },
+    {
+      "id": "0693de3e-e852-431c-90b9-a26e754563b7",
+      "name": "Riya Trivedi",
+      "rollNo": 30,
+      "classId": "c5b",
+      "active": true
+    },
+    {
+      "id": "f6fa1087-ef1e-4952-a783-f6811c831282",
+      "name": "Harsh Solanki",
+      "rollNo": 1,
+      "classId": "c6a",
+      "active": true
+    },
+    {
+      "id": "306f2abb-67f8-444b-adc3-1265146ed09a",
+      "name": "Sai Shah",
+      "rollNo": 2,
+      "classId": "c6a",
+      "active": true
+    },
+    {
+      "id": "06ec8b70-a2f3-47e8-b7cf-657b2a5d13f8",
+      "name": "Pooja Desai",
+      "rollNo": 3,
+      "classId": "c6a",
+      "active": true
+    },
+    {
+      "id": "11b4c548-dd1c-4835-b6da-fefac532843e",
+      "name": "Sai Thakkar",
+      "rollNo": 4,
+      "classId": "c6a",
+      "active": true
+    },
+    {
+      "id": "d6771530-dff4-4072-b979-55df6186e105",
+      "name": "Vivaan Joshi",
+      "rollNo": 5,
+      "classId": "c6a",
+      "active": true
+    },
+    {
+      "id": "5162c753-88a3-49be-976e-63f935151044",
+      "name": "Myra Patel",
+      "rollNo": 6,
+      "classId": "c6a",
+      "active": true
+    },
+    {
+      "id": "e37897a6-265d-47e5-9af6-0c9d6e6f2f50",
+      "name": "Nirav Thakkar",
+      "rollNo": 7,
+      "classId": "c6a",
+      "active": true
+    },
+    {
+      "id": "7714a32a-e071-4b5d-961e-d945ef0227ea",
+      "name": "Vivaan Bhatt",
+      "rollNo": 8,
+      "classId": "c6a",
+      "active": true
+    },
+    {
+      "id": "7b52b4af-0c5a-4984-b1aa-17c9ed7a187c",
+      "name": "Riya Dave",
+      "rollNo": 9,
+      "classId": "c6a",
+      "active": true
+    },
+    {
+      "id": "00545447-6f41-4dd5-8fbf-d8f2892f77d3",
+      "name": "Yash Modi",
+      "rollNo": 10,
+      "classId": "c6a",
+      "active": true
+    },
+    {
+      "id": "7d2c32ec-16ea-4b28-93db-0f2d9c8481c1",
+      "name": "Yash Bhatt",
+      "rollNo": 11,
+      "classId": "c6a",
+      "active": true
+    },
+    {
+      "id": "2b06335d-86a2-421a-a86c-2dfbe8b335ce",
+      "name": "Kabir Pandya",
+      "rollNo": 12,
+      "classId": "c6a",
+      "active": true
+    },
+    {
+      "id": "eaef3c32-f625-4ffe-b71e-5009948af2d0",
+      "name": "Ravi Parikh",
+      "rollNo": 13,
+      "classId": "c6a",
+      "active": true
+    },
+    {
+      "id": "e0bb3de9-e4dd-4bf7-96f1-e076fcb64760",
+      "name": "Divya Dave",
+      "rollNo": 14,
+      "classId": "c6a",
+      "active": true
+    },
+    {
+      "id": "63a0b9d2-138b-4539-af3d-7be9ce413768",
+      "name": "Aarav Solanki",
+      "rollNo": 15,
+      "classId": "c6a",
+      "active": true
+    },
+    {
+      "id": "83773361-bdf5-4cd8-a909-b80f45c5daeb",
+      "name": "Parth Parikh",
+      "rollNo": 16,
+      "classId": "c6a",
+      "active": true
+    },
+    {
+      "id": "8a35628d-3bf7-4198-bd83-68a786eff100",
+      "name": "Priya Desai",
+      "rollNo": 17,
+      "classId": "c6a",
+      "active": true
+    },
+    {
+      "id": "a261c052-d663-478a-a691-db65a64a8999",
+      "name": "Komal Mehta",
+      "rollNo": 18,
+      "classId": "c6a",
+      "active": true
+    },
+    {
+      "id": "fb647269-4921-45f9-a03f-9d3cef97f07e",
+      "name": "Tejal Amin",
+      "rollNo": 19,
+      "classId": "c6a",
+      "active": true
+    },
+    {
+      "id": "0531d15d-9e79-4ee7-b84a-c8b590455109",
+      "name": "Diya Joshi",
+      "rollNo": 20,
+      "classId": "c6a",
+      "active": true
+    },
+    {
+      "id": "d3f6002b-27a1-4100-96b2-ee885a2816f0",
+      "name": "Isha Chauhan",
+      "rollNo": 21,
+      "classId": "c6a",
+      "active": true
+    },
+    {
+      "id": "dcd2ffec-92d0-473a-9208-95d441a78236",
+      "name": "Nisha Dave",
+      "rollNo": 22,
+      "classId": "c6a",
+      "active": true
+    },
+    {
+      "id": "86130016-534c-4263-824f-b306e9b5c539",
+      "name": "Reyansh Trivedi",
+      "rollNo": 23,
+      "classId": "c6a",
+      "active": true
+    },
+    {
+      "id": "4aa787dd-17e9-4cc1-8293-4b6f3f52c86e",
+      "name": "Vivaan Parikh",
+      "rollNo": 24,
+      "classId": "c6a",
+      "active": true
+    },
+    {
+      "id": "5218142a-3b06-44be-96e3-732455c57d4b",
+      "name": "Jay Kothari",
+      "rollNo": 25,
+      "classId": "c6a",
+      "active": true
+    },
+    {
+      "id": "148c8005-e2a8-48c4-b005-1b4b16935a1c",
+      "name": "Aarav Shah",
+      "rollNo": 26,
+      "classId": "c6a",
+      "active": true
+    },
+    {
+      "id": "8c69d235-2277-41b6-8906-29d79caedb0a",
+      "name": "Arjun Mehta",
+      "rollNo": 27,
+      "classId": "c6a",
+      "active": true
+    },
+    {
+      "id": "fa1fc380-0b49-4f06-8add-a13fe969d00b",
+      "name": "Kabir Modi",
+      "rollNo": 28,
+      "classId": "c6a",
+      "active": true
+    },
+    {
+      "id": "217ac379-cf73-4f37-a92c-f45c8c48acdf",
+      "name": "Minal Thakkar",
+      "rollNo": 29,
+      "classId": "c6a",
+      "active": true
+    },
+    {
+      "id": "ce34dbe5-0576-49a0-9f23-013c83a827d1",
+      "name": "Reyansh Raval",
+      "rollNo": 30,
+      "classId": "c6a",
+      "active": true
+    }
+  ],
+  "assignments": [
+    {
+      "id": "22ffb130-ff5b-4c3e-bb09-2eac637d2bd2",
+      "userId": "ct-1",
+      "classId": "c5a",
+      "type": "class_teacher",
+      "days": null,
+      "startDate": null,
+      "endDate": null,
+      "temporary": false
+    },
+    {
+      "id": "51f991f0-6fd2-4c7c-95b8-823632eea001",
+      "userId": "ct-2",
+      "classId": "c5b",
+      "type": "class_teacher",
+      "days": null,
+      "startDate": null,
+      "endDate": null,
+      "temporary": false
+    },
+    {
+      "id": "2f71ad1d-9f02-4b4d-bda3-0d1d03610ea4",
+      "userId": "ct-3",
+      "classId": "c6a",
+      "type": "class_teacher",
+      "days": null,
+      "startDate": null,
+      "endDate": null,
+      "temporary": false
+    }
+  ],
+  "devices": [],
+  "enrollmentTokens": [],
+  "attendance": [],
+  "corrections": [],
+  "log": []
+}
