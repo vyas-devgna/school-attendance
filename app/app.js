@@ -138,6 +138,7 @@
     const url = pairing.server + '/api' + path;
     const headers = { 'Content-Type': 'application/json', ...opts.headers };
     if (pairing?.deviceId) headers['x-device-id'] = pairing.deviceId;
+    headers['Bypass-Tunnel-Reminder'] = 'true';
     const res = await fetch(url, { ...opts, headers });
     if (res.status === 403) { setState('revoked'); showScreen('revoked'); throw new Error('revoked'); }
     if (!res.ok) throw new Error(await res.text());
@@ -214,7 +215,7 @@
     try {
       const deviceId = genId();
       const res = await fetch(server + '/api/enroll', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        method: 'POST', headers: { 'Content-Type': 'application/json', 'Bypass-Tunnel-Reminder': 'true' },
         body: JSON.stringify({ code, deviceId }),
       });
       if (!res.ok) { const err = await res.json(); throw new Error(err.error || 'Enrollment failed'); }
@@ -240,7 +241,7 @@
       statusEl.style.color = 'var(--yellow)';
       const deviceId = genId();
       const res = await fetch(data.server + '/api/enroll', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        method: 'POST', headers: { 'Content-Type': 'application/json', 'Bypass-Tunnel-Reminder': 'true' },
         body: JSON.stringify({ token: data.token, deviceId }),
       });
       if (!res.ok) { const err = await res.json(); throw new Error(err.error || 'Enrollment failed'); }

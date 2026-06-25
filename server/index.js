@@ -6,13 +6,14 @@ const { v4: uuid } = require('uuid');
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
+const localtunnel = require('localtunnel');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 const DB_PATH = path.join(__dirname, 'db.json');
 const BACKUP_DIR = path.join(__dirname, 'backups');
 
-app.use(cors());
+app.use(cors({ origin: '*', allowedHeaders: ['Content-Type', 'Authorization', 'x-device-id', 'Bypass-Tunnel-Reminder'] }));
 app.use(express.json({ limit: '10mb' }));
 
 // --- DB helpers ---
@@ -754,6 +755,7 @@ function sanitizeUser(user) {
 }
 
 function getServerUrl(req) {
+  if (global.TUNNEL_URL) return global.TUNNEL_URL;
   const host = req.headers.host || `localhost:${PORT}`;
   return `${req.protocol}://${host}`;
 }
@@ -796,9 +798,22 @@ if (db.settings?.setupDone) createBackup();
 // Daily auto backup (every 24h)
 setInterval(() => { if (db.settings?.setupDone) createBackup(); }, 24 * 60 * 60 * 1000);
 
-app.listen(PORT, '0.0.0.0', () => {
+app.listen(PORT, '0.0.0.0', async () => {
   const lanIp = getLanIp();
-  console.log(`Server running:`);
+  console.log(`Server running at http://${lanIp}:${PORT}`);
+  
+  try {
+    const tunnel = await localtunnel({ port: PORT, subdomain: 'vyas-school-att-' + Math.floor(Math.random()*10000) });
+    global.TUNNEL_URL = tunnel.url;
+    console.log(`\nPublic URL (Remote Access): ${tunnel.url}\n`);
+    
+    tunnel.on('close', () => {
+      console.log('Tunnel closed');
+    });
+  } catch (err) {
+    console.error('Failed to create tunnel:', err.message);
+  }
+
   console.log(`  Local:   http://localhost:${PORT}`);
   console.log(`  Network: http://${lanIp}:${PORT}`);
   console.log(`  Admin:   http://localhost:${PORT}/admin`);
