@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="theme-color" content="#6366f1">
+  <meta name="theme-color" content="#155e75">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <title>Attendance Admin</title>
   <link rel="manifest" href="manifest.json">
@@ -14,20 +14,21 @@
   <script src="../shared/pairing.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    :root { --bg:#0f1117; --surface:#1a1d27; --border:#2a2d3a; --text:#e4e4e7; --muted:#71717a; --accent:#6366f1; --green:#22c55e; --red:#ef4444; --yellow:#eab308; --blue:#3b82f6; --radius:10px; }
-    body { font-family: system-ui, sans-serif; background: var(--bg); color: var(--text); padding: 0; margin: 0; }
+    :root { --bg:#edf4f1; --surface:#fff; --border:#c8d8d2; --text:#17332d; --muted:#60756e; --accent:#155e75; --green:#15803d; --red:#b91c1c; --yellow:#a16207; --blue:#1d4ed8; --radius:12px; }
+    body { font-family:"Trebuchet MS","Nirmala UI",sans-serif; background:linear-gradient(135deg,rgba(21,94,117,.07),transparent 42%),repeating-linear-gradient(0deg,transparent 0 31px,rgba(23,51,45,.035) 31px 32px),var(--bg); color:var(--text); padding:0; margin:0; }
     .wrap { max-width: 900px; margin: 0 auto; padding: 12px; min-height: 100vh; }
-    h1 { font-size: 1.2rem; display: flex; align-items: center; gap: 8px; padding: 8px 0 12px; }
+    h1 { font-family:Georgia,serif; font-size:1.25rem; letter-spacing:-.01em; display:flex; align-items:center; gap:8px; padding:8px 0 12px; }
     h2 { font-size: .95rem; color: var(--muted); margin: 16px 0 8px; }
-    .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; margin-bottom: 12px; }
+    .card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:16px; margin-bottom:12px; box-shadow:0 5px 18px rgba(23,51,45,.06); }
     .tabs { display: flex; gap: 4px; margin-bottom: 16px; flex-wrap: wrap; }
     .tab { padding: 8px 14px; border: 1px solid var(--border); border-radius: var(--radius); background: none; color: var(--muted); cursor: pointer; font-size: .8rem; display: inline-flex; align-items: center; gap: 4px; min-height: 40px; }
     .tab.active { background: var(--accent); color: white; border-color: var(--accent); }
     label { display: block; font-size: .8rem; color: var(--muted); margin-bottom: 4px; }
-    input, select, textarea { width: 100%; padding: 8px 12px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg); color: var(--text); font-size: .9rem; margin-bottom: 8px; }
+    input, select, textarea { width:100%; padding:9px 12px; border:1px solid var(--border); border-radius:var(--radius); background:var(--surface); color:var(--text); font-size:.9rem; margin-bottom:8px; }
     textarea { resize: vertical; }
     button { padding: 8px 16px; border: none; border-radius: var(--radius); cursor: pointer; font-size: .85rem; display: inline-flex; align-items: center; gap: 6px; min-height: 40px; }
     button:active { opacity: .7; }
+    button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible { outline:3px solid rgba(21,94,117,.25); outline-offset:2px; }
     .btn-primary { background: var(--accent); color: white; }
     .btn-success { background: var(--green); color: white; }
     .btn-danger { background: var(--red); color: white; }
@@ -38,10 +39,10 @@
     th, td { padding: 8px 6px; text-align: left; border-bottom: 1px solid var(--border); }
     th { color: var(--muted); font-weight: 500; }
     .badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: .7rem; }
-    .badge-green { background: #22c55e22; color: var(--green); }
-    .badge-red { background: #ef444422; color: var(--red); }
-    .badge-yellow { background: #eab30822; color: var(--yellow); }
-    .badge-blue { background: #3b82f622; color: var(--blue); }
+    .badge-green { background:#dcfce7; color:var(--green); }
+    .badge-red { background:#fee2e2; color:var(--red); }
+    .badge-yellow { background:#fef3c7; color:var(--yellow); }
+    .badge-blue { background:#dbeafe; color:var(--blue); }
     .qr-container { text-align: center; padding: 16px; }
     .qr-container img { max-width: 250px; border-radius: var(--radius); }
     .hidden { display: none !important; }
@@ -49,7 +50,7 @@
     .row > * { flex: 1; min-width: 140px; }
     .status { font-size: .8rem; color: var(--muted); padding: 8px 0; }
     .action-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 8px; margin-bottom: 16px; }
-    .action-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 10px; display: flex; flex-direction: column; align-items: center; gap: 6px; cursor: pointer; text-align: center; font-size: .8rem; }
+    .action-card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:14px 10px; display:flex; flex-direction:column; align-items:center; gap:6px; cursor:pointer; text-align:center; font-size:.8rem; box-shadow:0 4px 14px rgba(23,51,45,.05); }
     .action-card:active { opacity: .7; }
     .action-card i { color: var(--accent); }
     .stat-row { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid var(--border); font-size: .85rem; }
@@ -60,7 +61,8 @@
     .install-screen .steps { text-align: left; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; font-size: .85rem; line-height: 1.6; }
     .scan-area { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; padding: 20px; min-height: 50vh; }
     .scan-area p { color: var(--muted); text-align: center; }
-    @media (max-width: 600px) { .wrap { padding: 8px; } }
+    @media (max-width: 600px) { .wrap { padding: 8px; } .tabs { overflow-x:auto; flex-wrap:nowrap; padding-bottom:4px; } .tab { flex:0 0 auto; } }
+    @media (prefers-reduced-motion:reduce) { *,*::before,*::after { scroll-behavior:auto !important; } }
   </style>
 </head>
 <body>
@@ -87,15 +89,13 @@
   <div id="pairingScreen" class="hidden">
     <div class="scan-area">
       <i data-lucide="scan-line" style="width:48px;height:48px;color:var(--accent)"></i>
-      <p>Scan the enrollment QR code<br>or enter pairing details below</p>
+      <p>Scan the enrollment QR code<br>or enter the 6-digit code below</p>
       <video id="pairVideo" autoplay playsinline class="hidden" style="width:100%;max-width:300px;border-radius:var(--radius);border:2px solid var(--accent)"></video>
       <button class="btn-primary" id="btnStartPairScan" onclick="startPairScan()">
         <i data-lucide="camera" style="width:18px;height:18px"></i> Scan QR Code
       </button>
-      <div style="color:var(--muted);font-size:.8rem;margin:4px 0">— or enter details —</div>
+      <div style="color:var(--muted);font-size:.8rem;margin:4px 0">— or enter code —</div>
       <div style="width:100%;max-width:300px">
-        <label>Server Address</label>
-        <input id="pairServer" placeholder="http://192.168.1.6:3000">
         <label>6-Digit Pairing Code</label>
         <input id="pairCode" type="text" inputmode="numeric" maxlength="6" pattern="[0-9]{6}" placeholder="000000" style="font-size:1.5rem;text-align:center;letter-spacing:.3em;font-weight:700">
         <button class="btn-primary btn-block" onclick="adminPair()">
@@ -290,7 +290,7 @@
       <h2>Backup & Restore</h2>
       <div id="backupStatus" class="mb-12"></div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
-        <button class="btn-primary" onclick="downloadFile('/api/backup/download','attendance-backup-'+new Date().toISOString().slice(0,10)+'.json')"><i data-lucide="download" style="width:14px;height:14px"></i> Download Backup</button>
+        <button class="btn-primary" onclick="downloadFile('/api/backup/download','attendance-backup-'+ATT.localDate()+'.json')"><i data-lucide="download" style="width:14px;height:14px"></i> Download Backup</button>
         <button class="btn-success" onclick="createBackupNow()"><i data-lucide="save" style="width:14px;height:14px"></i> Backup Now</button>
         <button class="btn-outline" onclick="document.getElementById('restoreFile').click()"><i data-lucide="upload" style="width:14px;height:14px"></i> Restore from File</button>
         <input type="file" id="restoreFile" accept=".json" class="hidden" onchange="restoreBackup(this)">
@@ -360,7 +360,7 @@
   let users = [], classes = [], students = [], assignments = [], devices = [];
 
   // --- Install gate (the PC's localhost bypasses; remote admin must install) ---
-  const isLocalHost = ATT.isLocalServed();
+  const isLocalHost = ATT.isOfficePc();
   const isInstalled = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true || isLocalHost;
   let deferredPrompt = null;
   window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); deferredPrompt = e; });
@@ -375,7 +375,7 @@
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
 
   async function bootAdmin() {
-    if (ATT.isLocalServed()) {
+    if (ATT.isOfficePc()) {
       // Served by the local server on the office PC → trusted local admin, no pairing needed.
       API = location.origin + '/api';
       ATT.conn.setEndpoint(location.origin, null);
@@ -383,9 +383,14 @@
       if (!s.setupDone) document.getElementById('setupScreen').classList.remove('hidden');
       else showAdminMain();
     } else {
-      const p = await ATT.pairing.reconnect();
-      if (p && p.role === 'admin') { API = p.server + '/api'; showAdminMain(); }
-      else { document.getElementById('pairingScreen').classList.remove('hidden'); }
+      try {
+        const p = await ATT.pairing.reconnect();
+        if (p && p.role === 'admin') { API = p.server + '/api'; showAdminMain(); }
+        else document.getElementById('pairingScreen').classList.remove('hidden');
+      } catch (e) {
+        document.getElementById('pairingScreen').classList.remove('hidden');
+        document.getElementById('pairStatus').textContent = e.message;
+      }
     }
     lucide.createIcons();
   }
@@ -431,14 +436,13 @@
   window.downloadFile = downloadFile;
 
   window.adminPair = async function() {
-    const serverField = document.getElementById('pairServer').value.trim();
     const code = document.getElementById('pairCode').value.trim();
     const status = document.getElementById('pairStatus');
     if (!code || code.length !== 6) { status.textContent = 'Enter the 6-digit code from the office admin screen'; status.style.color = 'var(--red)'; return; }
     status.textContent = 'Pairing…'; status.style.color = 'var(--yellow)';
     try {
       // Server address is optional — defaults to the school's public address. Role is enforced server-side.
-      const pairing = await ATT.pairing.enroll({ code, expectApp: 'admin', server: serverField || undefined });
+      const pairing = await ATT.pairing.enroll({ code, expectApp: 'admin' });
       API = pairing.server + '/api';
       showAdminMain();
     } catch (e) { status.textContent = e.message || 'Pairing failed'; status.style.color = 'var(--red)'; }
@@ -600,13 +604,12 @@
 
   async function f(path) { return ATT.conn.request('/api' + path); }
   async function post(path, body) { return ATT.conn.request('/api' + path, { method: 'POST', body }); }
-  // ponytail: escape user-entered strings (names, notes, reasons) before innerHTML (anti-XSS)
-  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+  const esc = ATT.esc;
 
   // --- HOME ---
   async function loadHome() {
     const el = document.getElementById('homeStats');
-    const today = new Date().toISOString().slice(0, 10);
+    const today = ATT.localDate();
     try {
       const [missing, diag] = await Promise.all([f('/reports/missing/' + today), f('/diagnostics')]);
       const totalClasses = classes.length;
@@ -634,7 +637,7 @@
     document.getElementById('userRows').innerHTML = users.map(u => {
       const roleBadge = u.role === 'admin' ? 'badge-yellow' : u.role === 'class_teacher' ? 'badge-green' : 'badge-blue';
       return `<tr>
-        <td>${u.name}</td>
+        <td>${esc(u.name)}</td>
         <td><span class="badge ${roleBadge}">${u.role.replace(/_/g, ' ')}</span></td>
         <td><span class="badge ${u.active !== false ? 'badge-green' : 'badge-red'}">${u.active !== false ? 'Active' : 'Disabled'}</span></td>
         <td>
@@ -667,7 +670,7 @@
         const count = students.filter(s => s.classId === c.id && s.active !== false).length;
         const teacher = assignments.find(a => a.classId === c.id && a.type === 'class_teacher');
         const teacherName = teacher ? users.find(u => u.id === teacher.userId)?.name : '—';
-        return `<tr><td><strong>${c.label}</strong></td><td>${count}</td><td>${teacherName}</td></tr>`;
+        return `<tr><td><strong>${esc(c.label)}</strong></td><td>${count}</td><td>${esc(teacherName)}</td></tr>`;
       }).join('')
     }</tbody></table>`;
   }
@@ -685,7 +688,7 @@
 
   // --- STUDENTS ---
   function populateStudentDropdowns() {
-    const opts = classes.map(c => `<option value="${c.id}">${c.label}</option>`).join('');
+    const opts = classes.map(c => `<option value="${c.id}">${esc(c.label)}</option>`).join('');
     const optsAll = `<option value="">All Classes</option>` + opts;
     document.getElementById('newStudentClass').innerHTML = opts;
     document.getElementById('importClass').innerHTML = opts;
@@ -699,7 +702,7 @@
     document.getElementById('studentRows').innerHTML = sorted.map(s => {
       const cls = classes.find(c => c.id === s.classId);
       return `<tr>
-        <td>${s.rollNo}</td><td>${s.name}</td><td>${cls?.label || ''}</td>
+        <td>${s.rollNo}</td><td>${esc(s.name)}</td><td>${esc(cls?.label || '')}</td>
         <td><span class="badge ${s.active !== false ? 'badge-green' : 'badge-red'}">${s.active !== false ? 'Active' : 'Inactive'}</span></td>
         <td><button class="btn-sm ${s.active !== false ? 'btn-danger' : 'btn-success'}" onclick="toggleStudent('${s.id}')">${s.active !== false ? 'Disable' : 'Enable'}</button></td>
       </tr>`;
@@ -749,8 +752,8 @@
   function populateAssign() {
     const ct = users.filter(u => u.role === 'class_teacher' && u.active !== false);
     const st = users.filter(u => u.role === 'subject_teacher' && u.active !== false);
-    const clsOpts = classes.map(c => `<option value="${c.id}">${c.label}</option>`).join('');
-    document.getElementById('assignTeacher').innerHTML = ct.map(u => `<option value="${u.id}">${u.name}</option>`).join('');
+    const clsOpts = classes.map(c => `<option value="${c.id}">${esc(c.label)}</option>`).join('');
+    document.getElementById('assignTeacher').innerHTML = ct.map(u => `<option value="${u.id}">${esc(u.name)}</option>`).join('');
     document.getElementById('assignClass').innerHTML = clsOpts;
     document.getElementById('subjectTeacher').innerHTML = st.map(u => `<option value="${u.id}">${esc(u.name)}</option>`).join('');
     document.getElementById('subjectClass').innerHTML = clsOpts;
@@ -768,7 +771,7 @@
       return `<tr>
         <td>${esc(user?.name) || '?'}</td><td>${esc(cls?.label) || '?'}</td>
         <td><span class="badge ${typeBadge}">${esc(a.type).replace(/_/g, ' ')}</span>${a.temporary ? ' <span class="badge badge-yellow">temp</span>' : ''}</td>
-        <td>${a.days ? a.days.join(', ') : 'All'}</td>
+        <td>${a.days ? esc(a.days.join(', ')) : 'All'}</td>
         <td><button class="btn-sm btn-danger" onclick="removeAssignment('${a.id}')">Remove</button></td>
       </tr>`;
     }).join('');
@@ -819,7 +822,7 @@
   // --- ENROLL ---
   function populateEnroll() {
     document.getElementById('enrollUser').innerHTML = users.map(u =>
-      `<option value="${u.id}">${u.name} (${u.role.replace(/_/g, ' ')})</option>`
+      `<option value="${u.id}">${esc(u.name)} (${u.role.replace(/_/g, ' ')})</option>`
     ).join('');
   }
 
@@ -847,7 +850,7 @@
   async function loadDevices() {
     devices = await f('/devices');
     document.getElementById('deviceRows').innerHTML = devices.map(d => `<tr>
-      <td>${d.userName || '?'}</td>
+      <td>${esc(d.userName || '?')}</td>
       <td>${(d.userRole || '').replace(/_/g, ' ')}</td>
       <td style="font-size:.7rem;color:var(--muted)">${d.deviceId.slice(0, 12)}…</td>
       <td><span class="badge ${d.revoked ? 'badge-red' : 'badge-green'}">${d.revoked ? 'Revoked' : 'Active'}</span></td>
@@ -862,8 +865,8 @@
 
   // --- REPORTS ---
   function populateReportDropdowns() {
-    document.getElementById('reportClass').innerHTML = classes.map(c => `<option value="${c.id}">${c.label}</option>`).join('');
-    document.getElementById('reportDate').value = new Date().toISOString().slice(0, 10);
+    document.getElementById('reportClass').innerHTML = classes.map(c => `<option value="${c.id}">${esc(c.label)}</option>`).join('');
+    document.getElementById('reportDate').value = ATT.localDate();
     changeReport();
   }
 
@@ -880,12 +883,12 @@
     if (type === 'daily' || type === 'weekly' || type === 'missing' || type === 'absentees') {
       dateCol.classList.remove('hidden');
       if (!document.getElementById('reportDate').value) {
-        document.getElementById('reportDate').value = new Date().toISOString().slice(0, 10);
+        document.getElementById('reportDate').value = ATT.localDate();
       }
     } else if (type === 'monthly') {
       monthCol.classList.remove('hidden');
       if (!document.getElementById('reportMonth').value) {
-        document.getElementById('reportMonth').value = new Date().toISOString().slice(0, 7);
+        document.getElementById('reportMonth').value = ATT.localDate().slice(0, 7);
       }
     }
 
@@ -907,7 +910,7 @@
         const data = await f('/reports/missing/' + date);
         if (!data.missing.length) { el.innerHTML = '<p style="color:var(--green)">All classes have been marked! ✓</p>'; return; }
         el.innerHTML = `<table><thead><tr><th>Class</th><th>Marked</th><th>Total</th><th>Teacher</th></tr></thead><tbody>${
-          data.missing.map(m => `<tr><td>${m.classLabel}</td><td>${m.marked}</td><td>${m.total}</td><td>${m.teacherName}</td></tr>`).join('')
+          data.missing.map(m => `<tr><td>${esc(m.classLabel)}</td><td>${m.marked}</td><td>${m.total}</td><td>${esc(m.teacherName)}</td></tr>`).join('')
         }</tbody></table>`;
       } catch { el.innerHTML = '<p style="color:var(--red)">Error</p>'; }
       return;
@@ -920,7 +923,7 @@
         const data = await f('/reports/absentees/' + date);
         if (!data.absentees.length) { el.innerHTML = '<p style="color:var(--green)">No absentees! ✓</p>'; return; }
         el.innerHTML = `<table><thead><tr><th>Class</th><th>#</th><th>Name</th></tr></thead><tbody>${
-          data.absentees.map(a => `<tr><td>${a.classLabel}</td><td>${a.rollNo}</td><td>${a.name}</td></tr>`).join('')
+          data.absentees.map(a => `<tr><td>${esc(a.classLabel)}</td><td>${a.rollNo}</td><td>${esc(a.name)}</td></tr>`).join('')
         }</tbody></table>`;
       } catch { el.innerHTML = '<p style="color:var(--red)">Error</p>'; }
       return;
@@ -948,9 +951,9 @@
               const displayStatus = r.status === 'not_marked' ? 'Not Marked' : r.status.toUpperCase();
               return `<tr>
                 <td>${r.rollNo}</td>
-                <td>${r.name}</td>
+                <td>${esc(r.name)}</td>
                 <td><span class="badge ${badge}">${displayStatus}</span></td>
-                <td style="font-size:0.75rem;color:var(--muted)">${r.note || ''}</td>
+                <td style="font-size:0.75rem;color:var(--muted)">${esc(r.note || '')}</td>
               </tr>`;
             }).join('')
           }</tbody></table>`;
@@ -959,8 +962,8 @@
         const dateObj = new Date(date);
         const day = dateObj.getDay();
         const diffToMon = dateObj.getDate() - day + (day === 0 ? -6 : 1);
-        const mon = new Date(dateObj.setDate(diffToMon)).toISOString().slice(0, 10);
-        const sun = new Date(dateObj.setDate(diffToMon + 6)).toISOString().slice(0, 10);
+        const mon = ATT.localDate(new Date(dateObj.setDate(diffToMon)));
+        const sun = ATT.localDate(new Date(dateObj.setDate(diffToMon + 6)));
 
         const data = await f(`/reports/weekly/${classId}?start=${mon}&end=${sun}`);
         if (!data.rows.length) { el.innerHTML = '<p style="color:var(--muted)">No records</p>'; return; }
@@ -993,7 +996,7 @@
             }).join('');
             return `<tr>
               <td>${r.rollNo}</td>
-              <td style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px">${r.name}</td>
+              <td style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px">${esc(r.name)}</td>
               ${dayCells}
               <td style="text-align:center">${r.present}/${r.total}</td>
             </tr>`;
@@ -1007,7 +1010,7 @@
           <thead><tr><th>#</th><th>Name</th><th>P</th><th>A</th><th>L/V</th><th>%</th></tr></thead>
           <tbody>${data.rows.map(r => `<tr>
             <td>${r.rollNo}</td>
-            <td>${r.name}</td>
+            <td>${esc(r.name)}</td>
             <td><span class="badge badge-green">${r.present}</span></td>
             <td><span class="badge badge-red">${r.absent}</span></td>
             <td><span class="badge badge-blue">${r.leave}</span></td>
@@ -1021,7 +1024,7 @@
           <thead><tr><th>#</th><th>Name</th><th>P</th><th>A</th><th>%</th></tr></thead>
           <tbody>${data.summary.map(s => `<tr>
             <td>${s.rollNo}</td>
-            <td>${s.name}</td>
+            <td>${esc(s.name)}</td>
             <td><span class="badge badge-green">${s.present}</span></td>
             <td><span class="badge badge-red">${s.absent}</span></td>
             <td>${s.percentage}%</td>
@@ -1044,7 +1047,7 @@
       `;
       document.getElementById('backupList').innerHTML = list.length
         ? `<table><thead><tr><th>File</th><th>Size</th><th>Date</th></tr></thead><tbody>${
-          list.slice(0, 10).map(b => `<tr><td style="font-size:.75rem">${b.name}</td><td>${(b.size / 1024).toFixed(1)} KB</td><td>${new Date(b.date).toLocaleString('en-IN')}</td></tr>`).join('')
+          list.slice(0, 10).map(b => `<tr><td style="font-size:.75rem">${esc(b.name)}</td><td>${(b.size / 1024).toFixed(1)} KB</td><td>${new Date(b.date).toLocaleString('en-IN')}</td></tr>`).join('')
         }</tbody></table>` : '<p style="color:var(--muted)">No backups yet</p>';
     } catch { document.getElementById('backupStatus').innerHTML = '<p style="color:var(--red)">Cannot load backup info</p>'; }
   }

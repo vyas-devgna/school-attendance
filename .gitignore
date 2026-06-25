@@ -11,3 +11,10 @@ server/backups/
 
 # Test/tooling artifacts
 .playwright-mcp/
+*-ideopenedfile*.txt
+
+# Session exports and generated screenshots — never deploy
+codex-session-export.md
+admin-desktop-*.png
+admin-mobile-*.png
+teacher-pairing-mobile-*.png

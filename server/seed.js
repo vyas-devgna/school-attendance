@@ -1,7 +1,7 @@
 // ponytail: seed demo data — Gujarat school, new schema
 const fs = require('fs');
 const path = require('path');
-const { v4: uuid } = require('uuid');
+const { randomUUID: uuid } = require('crypto');
 
 const DB_PATH = path.join(__dirname, 'db.json');
 

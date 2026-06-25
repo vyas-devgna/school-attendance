@@ -1,18 +1,21 @@
 {
   "name": "att-server",
-  "version": "1.0.0",
+  "version": "2.1.0",
   "private": true,
   "scripts": {
     "start": "node index.js",
-    "seed": "node seed.js"
+    "seed": "node seed.js",
+    "test": "node test-setup.js && node test-pairing.js && node test-db-recovery.js && node test-webrtc.js"
   },
   "dependencies": {
     "cors": "^2.8.5",
     "express": "^4.21.0",
     "localtunnel": "^2.0.2",
+    "node-datachannel": "^0.32.3",
     "qrcode": "^1.5.4",
-    "uuid": "^10.0.0",
-    "werift": "^0.23.0",
     "ws": "^8.21.0"
+  },
+  "overrides": {
+    "axios": "1.18.1"
   }
 }

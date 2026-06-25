@@ -1,6 +1,7 @@
 // ponytail: all teacher PWA logic — install gate, pairing, attendance, sync, reports
 (function () {
   'use strict';
+  const esc = ATT.esc;
 
   // --- Install gate ---
   const isInstalled = window.matchMedia('(display-mode: standalone)').matches
@@ -33,12 +34,6 @@
   document.getElementById('installGate').classList.add('hidden');
   document.getElementById('realApp').classList.remove('hidden');
 
-  // --- UUID fallback for HTTP ---
-  function genId() {
-    if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
-    return 'xxxx-xxxx-xxxx'.replace(/x/g, () => (Math.random() * 16 | 0).toString(16)) + '-' + Date.now().toString(36);
-  }
-
   // --- State ---
   const LS = {
     get: (k) => { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } },
@@ -46,7 +41,7 @@
     del: (k) => localStorage.removeItem(k),
   };
 
-  let pairing = LS.get('pairing'); // { server, deviceId, user }
+  let pairing = ATT.pairing.get(); // { server, deviceId, deviceToken, user, role }
   let connectionState = 'offline';
   let students = [];
   let attendance = {}; // { [studentId]: { status, note } }
@@ -63,8 +58,10 @@
       setState('connecting');
       checkConnection();
     }
-    setInterval(() => {
-      if (pairing && connectionState !== 'revoked') syncPending();
+    setInterval(async () => {
+      if (!pairing || connectionState === 'revoked') return;
+      if (connectionState === 'offline') await checkConnection();
+      if (connectionState === 'connected' || connectionState === 'sync-pending') syncPending();
     }, 30000);
     const dateInput = document.getElementById('attDate');
     if (dateInput) {
@@ -79,7 +76,7 @@
     if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
   }
 
-  function today() { return new Date().toISOString().slice(0, 10); }
+  function today() { return ATT.localDate(); }
 
   // --- Screens ---
   function showScreen(name) {
@@ -133,27 +130,31 @@
     }
   }
 
-  // --- API helper ---
+  // --- API helper (routes through the shared transport: WebRTC → REST → error) ---
   async function api(path, opts = {}) {
-    const url = pairing.server + '/api' + path;
-    const headers = { 'Content-Type': 'application/json', ...opts.headers };
-    if (pairing?.deviceId) headers['x-device-id'] = pairing.deviceId;
-    headers['Bypass-Tunnel-Reminder'] = 'true';
-    const res = await fetch(url, { ...opts, headers });
-    if (res.status === 403) { setState('revoked'); showScreen('revoked'); throw new Error('revoked'); }
-    if (!res.ok) throw new Error(await res.text());
-    return res.json();
+    try {
+      return await ATT.conn.request('/api' + path, {
+        method: opts.method || 'GET',
+        body: opts.body ? JSON.parse(opts.body) : undefined,
+      });
+    } catch (e) {
+      if (e.revoked) { setState('revoked'); showScreen('revoked'); throw new Error('revoked'); }
+      throw e;
+    }
   }
 
   // --- Auto-reconnect ---
   async function checkConnection() {
     try {
+      await ATT.pairing.reconnect();
       const user = await api('/me');
+      if (user.iceServers) ATT.ICE = user.iceServers; // upgrade ICE (TURN) for paired device
       pairing.user = user;
-      LS.set('pairing', pairing);
+      ATT.pairing.save(pairing);
       setState('connected');
-      // Fetch assignments
       try { myAssignments = await api('/my-assignments'); } catch { myAssignments = pairing.user?.assignments || []; }
+      try { LS.set('settings', await api('/settings')); } catch {}
+      try { LS.set('holidays', await api('/holidays')); } catch {}
       setupHomeScreen(user);
     } catch (e) {
       if (e.message === 'revoked') return;
@@ -208,54 +209,35 @@
   window.manualEnroll = async function () {
     const code = document.getElementById('manualCode').value.trim();
     const statusEl = document.getElementById('scanStatus');
-    if (!code || code.length !== 6) { statusEl.textContent = 'Enter 6-digit code'; return; }
-    statusEl.textContent = 'Pairing...';
+    if (!code || code.length !== 6) { statusEl.textContent = 'Enter the 6-digit code'; return; }
+    statusEl.textContent = 'Pairing…';
     statusEl.style.color = 'var(--yellow)';
-    const server = window.location.origin;
     try {
-      const deviceId = genId();
-      const res = await fetch(server + '/api/enroll', {
-        method: 'POST', headers: { 'Content-Type': 'application/json', 'Bypass-Tunnel-Reminder': 'true' },
-        body: JSON.stringify({ code, deviceId }),
-      });
-      if (!res.ok) { const err = await res.json(); throw new Error(err.error || 'Enrollment failed'); }
-      const result = await res.json();
-      pairing = { server, deviceId, user: result.user };
-      LS.set('pairing', pairing);
-      setState('connected');
-      try { myAssignments = await api('/my-assignments'); } catch { myAssignments = result.user?.assignments || []; }
-      try {
-        const settings = await api('/settings');
-        LS.set('settings', settings);
-      } catch {}
-      setupHomeScreen(result.user);
-    } catch (e) { statusEl.textContent = e.message; statusEl.style.color = 'var(--red)'; }
+      // Served locally → pair over same-origin; remote → over the public server (tunnel/WebRTC).
+      pairing = await ATT.pairing.enroll({ code, expectApp: 'teacher', server: ATT.isLocalServed() ? location.origin : undefined });
+      await afterPair();
+    } catch (e) { statusEl.textContent = e.message || 'Pairing failed'; statusEl.style.color = 'var(--red)'; }
   };
+
+  async function afterPair() {
+    setState('connected');
+    try { const me = await api('/me'); if (me.iceServers) ATT.ICE = me.iceServers; } catch {}
+    try { myAssignments = await api('/my-assignments'); } catch { myAssignments = pairing.user?.assignments || []; }
+    try { const settings = await api('/settings'); LS.set('settings', settings); } catch {}
+    try { LS.set('holidays', await api('/holidays')); } catch {}
+    setupHomeScreen(pairing.user);
+  }
 
   async function processQR(raw) {
     const statusEl = document.getElementById('scanStatus');
+    const inv = ATT.pairing.parseQR(raw);
+    if (!inv) { statusEl.textContent = 'This QR is not valid. Ask admin to generate a new code.'; statusEl.style.color = 'var(--red)'; return; }
+    statusEl.textContent = 'Pairing…';
+    statusEl.style.color = 'var(--yellow)';
     try {
-      const data = JSON.parse(raw);
-      if (!data.server || !data.token) throw new Error('Invalid QR data');
-      statusEl.textContent = 'Enrolling...';
-      statusEl.style.color = 'var(--yellow)';
-      const deviceId = genId();
-      const res = await fetch(data.server + '/api/enroll', {
-        method: 'POST', headers: { 'Content-Type': 'application/json', 'Bypass-Tunnel-Reminder': 'true' },
-        body: JSON.stringify({ token: data.token, deviceId }),
-      });
-      if (!res.ok) { const err = await res.json(); throw new Error(err.error || 'Enrollment failed'); }
-      const result = await res.json();
-      pairing = { server: data.server, deviceId, user: result.user };
-      LS.set('pairing', pairing);
-      setState('connected');
-      try { myAssignments = await api('/my-assignments'); } catch { myAssignments = result.user?.assignments || []; }
-      try {
-        const settings = await api('/settings');
-        LS.set('settings', settings);
-      } catch {}
-      setupHomeScreen(result.user);
-    } catch (e) { statusEl.textContent = e.message; statusEl.style.color = 'var(--red)'; }
+      pairing = await ATT.pairing.enroll({ server: inv.server, token: inv.token, expectApp: 'teacher' });
+      await afterPair();
+    } catch (e) { statusEl.textContent = e.message || 'Pairing failed'; statusEl.style.color = 'var(--red)'; }
   }
 
   // --- Home screen setup ---
@@ -275,7 +257,7 @@
       selectorContainer.classList.remove('hidden');
       classNameText.classList.add('hidden');
       selector.innerHTML = myAssignments.map((a, idx) => 
-        `<option value="${idx}">${a.classLabel || a.classId} (${a.type === 'class_teacher' ? 'Class' : 'Subject'})</option>`
+        `<option value="${idx}">${esc(a.classLabel || a.classId)} (${a.type === 'class_teacher' ? 'Class' : 'Subject'})</option>`
       ).join('');
       changeAssignment(0);
     } else {
@@ -429,6 +411,17 @@
     }
 
     const locked = isDateLocked(date);
+
+    // Holiday warning — informative, does not block marking (edge 85)
+    const holiday = (LS.get('holidays') || []).find(h => h.date === date);
+    if (holiday && !locked) {
+      blockMsg.textContent = `Note: ${date} is a holiday (${holiday.name}). Mark attendance only if school was open.`;
+      blockMsg.style.background = 'rgba(234, 179, 8, 0.1)';
+      blockMsg.style.borderColor = 'var(--yellow)';
+      blockMsg.style.color = 'var(--yellow)';
+      blockMsg.classList.remove('hidden');
+    }
+
     if (locked) {
       blockMsg.textContent = 'Attendance is locked. To correct attendance, use the "Request Correction" button next to a student.';
       blockMsg.style.background = 'rgba(234, 179, 8, 0.1)';
@@ -476,11 +469,11 @@
         return `<div class="student-row" style="flex-wrap:wrap">
           <div style="display:flex;align-items:center;width:100%;justify-content:space-between">
             <span class="student-roll">${s.rollNo}</span>
-            <span class="student-name" style="flex:1;margin-left:8px">${s.name}</span>
+            <span class="student-name" style="flex:1;margin-left:8px">${esc(s.name)}</span>
             <span class="badge ${badge}" style="margin-right:8px">${att.status.toUpperCase()}</span>
-            ${att.id ? `<button class="btn-sm btn-outline" style="font-size:0.75rem;padding:4px 8px;min-height:28px" onclick="requestCorrection('${att.id}','${s.id}','${s.name.replace(/'/g, "\\'")}')">Request Correction</button>` : `<span style="color:var(--muted);font-size:0.75rem">No saved record</span>`}
+            ${att.id ? `<button class="btn-sm btn-outline" style="font-size:0.75rem;padding:4px 8px;min-height:28px" onclick="requestCorrection('${att.id}','${s.id}')">Request Correction</button>` : `<span style="color:var(--muted);font-size:0.75rem">No saved record</span>`}
           </div>
-          ${att.note ? `<div style="font-size:0.75rem;color:var(--muted);width:100%;margin-top:4px;padding-left:32px">Note: ${att.note}</div>` : ''}
+          ${att.note ? `<div style="font-size:0.75rem;color:var(--muted);width:100%;margin-top:4px;padding-left:32px">Note: ${esc(att.note)}</div>` : ''}
         </div>`;
       }).join('');
     } else {
@@ -489,14 +482,14 @@
         return `<div class="student-row" style="flex-wrap:wrap">
           <div style="display:flex;align-items:center;width:100%;justify-content:space-between">
             <span class="student-roll">${s.rollNo}</span>
-            <span class="student-name" style="flex:1;margin-left:8px">${s.name}</span>
+            <span class="student-name" style="flex:1;margin-left:8px">${esc(s.name)}</span>
             <button class="att-btn att-P ${att.status === 'present' ? 'sel' : ''}" onclick="setAtt('${s.id}','present')">P</button>
             <button class="att-btn att-A ${att.status === 'absent' ? 'sel' : ''}" onclick="setAtt('${s.id}','absent')">A</button>
             <button class="att-btn att-L ${att.status === 'late' ? 'sel' : ''}" onclick="setAtt('${s.id}','late')">L</button>
             <button class="att-btn att-V ${att.status === 'leave' ? 'sel' : ''}" onclick="setAtt('${s.id}','leave')">V</button>
           </div>
           <div style="width:100%;margin-top:4px;padding:0 8px">
-            <input type="text" placeholder="Add note (optional)" value="${att.note || ''}" onchange="setNote('${s.id}',this.value)" style="width:100%;margin:0;font-size:0.8rem;padding:4px 8px;border:1px solid #2d3748;border-radius:4px;background:#1a202c;color:white">
+            <input type="text" maxlength="500" placeholder="Add note (optional)" value="${esc(att.note || '')}" onchange="setNote('${s.id}',this.value)" style="width:100%;margin:0;font-size:0.8rem;padding:6px 8px">
           </div>
         </div>`;
       }).join('');
@@ -525,6 +518,16 @@
     const date = document.getElementById('attDate').value;
     if (!currentClassId || !date) return;
 
+    // Unusual-pattern guard: confirm if everyone is marked absent (edge 80)
+    const marked = students.map(s => attendance[s.id]?.status || 'absent');
+    if (marked.length && marked.every(st => st === 'absent')) {
+      if (!confirm('All students are marked Absent. Is that correct?')) return;
+    }
+
+    // Stamp a fresh op-id per record for this save: retries of THIS save dedupe on the
+    // server; a later edit gets new ids and syncs as an update (idempotency, edges 47-48).
+    for (const sid in attendance) attendance[sid].opId = ATT.genId();
+
     const localKey = `att_${currentClassId}_${date}`;
     LS.set(localKey, attendance);
 
@@ -545,7 +548,8 @@
     setTimeout(() => { btn.innerHTML = orig; btn.style.background = ''; lucide.createIcons(); }, 2000);
   };
 
-  window.requestCorrection = async function (attId, studentId, studentName) {
+  window.requestCorrection = async function (attId, studentId) {
+    const studentName = students.find(s => s.id === studentId)?.name || 'student';
     if (!attId) {
       alert('Cannot request correction: no attendance record exists for this student on this date.');
       return;
@@ -605,6 +609,7 @@
         classId, studentId, date,
         status: data.status || 'present',
         note: data.note || '',
+        opId: data.opId,
         markedBy: pairing.user?.id,
         markedByRole: pairing.user?.role,
         deviceId: pairing.deviceId,
@@ -675,7 +680,7 @@
           <thead><tr><th>#</th><th>Name</th><th>P</th><th>A</th><th>%</th></tr></thead>
           <tbody>${data.summary.map(s => `<tr>
             <td>${s.rollNo}</td>
-            <td>${s.name}</td>
+            <td>${esc(s.name)}</td>
             <td><span class="badge badge-green">${s.present}</span></td>
             <td><span class="badge badge-red">${s.absent}</span></td>
             <td>${s.percentage}%</td>
@@ -685,7 +690,7 @@
         const data = await api(`/reports/daily/${currentClassId}/${date}`);
         if (!data.rows.length) { el.innerHTML = '<p style="color:var(--muted)">No records found</p>'; return; }
         el.innerHTML = `
-          <div class="card mb-8" style="background:#1a1d27;padding:12px;font-size:0.8rem">
+          <div class="card mb-8" style="padding:12px;font-size:0.8rem">
             Present: <strong style="color:var(--green)">${data.stats.present}</strong> |
             Absent: <strong style="color:var(--red)">${data.stats.absent}</strong> |
             Late: <strong style="color:var(--yellow)">${data.stats.late}</strong> |
@@ -698,9 +703,9 @@
               const displayStatus = r.status === 'not_marked' ? 'Not Marked' : r.status.toUpperCase();
               return `<tr>
                 <td>${r.rollNo}</td>
-                <td>${r.name}</td>
+                <td>${esc(r.name)}</td>
                 <td><span class="badge ${badge}">${displayStatus}</span></td>
-                <td style="font-size:0.75rem;color:var(--muted)">${r.note || ''}</td>
+                <td style="font-size:0.75rem;color:var(--muted)">${esc(r.note || '')}</td>
               </tr>`;
             }).join('')}</tbody>
           </table>`;
@@ -708,8 +713,8 @@
         const dateObj = new Date(date);
         const day = dateObj.getDay();
         const diffToMon = dateObj.getDate() - day + (day === 0 ? -6 : 1);
-        const mon = new Date(dateObj.setDate(diffToMon)).toISOString().slice(0, 10);
-        const sun = new Date(dateObj.setDate(diffToMon + 6)).toISOString().slice(0, 10);
+        const mon = ATT.localDate(new Date(dateObj.setDate(diffToMon)));
+        const sun = ATT.localDate(new Date(dateObj.setDate(diffToMon + 6)));
 
         const data = await api(`/reports/weekly/${currentClassId}?start=${mon}&end=${sun}`);
         if (!data.rows.length) { el.innerHTML = '<p style="color:var(--muted)">No records</p>'; return; }
@@ -742,7 +747,7 @@
             }).join('');
             return `<tr>
               <td>${r.rollNo}</td>
-              <td style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px">${r.name}</td>
+              <td style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px">${esc(r.name)}</td>
               ${dayCells}
               <td style="text-align:center">${r.present}/${r.total}</td>
             </tr>`;
@@ -755,7 +760,7 @@
           <thead><tr><th>#</th><th>Name</th><th>P</th><th>A</th><th>L/V</th><th>%</th></tr></thead>
           <tbody>${data.rows.map(r => `<tr>
             <td>${r.rollNo}</td>
-            <td>${r.name}</td>
+            <td>${esc(r.name)}</td>
             <td><span class="badge badge-green">${r.present}</span></td>
             <td><span class="badge badge-red">${r.absent}</span></td>
             <td><span class="badge badge-blue">${r.leave}</span></td>
@@ -777,7 +782,7 @@
       const list = await api('/students/' + currentClassId);
       el.innerHTML = `<table>
         <thead><tr><th>#</th><th>Name</th></tr></thead>
-        <tbody>${list.map(s => `<tr><td>${s.rollNo}</td><td>${s.name}</td></tr>`).join('')}</tbody>
+        <tbody>${list.map(s => `<tr><td>${s.rollNo}</td><td>${esc(s.name)}</td></tr>`).join('')}</tbody>
       </table>`;
     } catch {
       el.innerHTML = '<p style="color:var(--muted)">Offline</p>';
@@ -787,7 +792,7 @@
   // --- Unpair ---
   window.unpair = function () {
     if (!confirm('Clear pairing? You will need a new QR code to re-enroll.')) return;
-    LS.del('pairing');
+    ATT.pairing.clear();
     LS.del('pending_syncs');
     LS.del('pending_corrections');
     pairing = null;

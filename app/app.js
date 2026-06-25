@@ -1,6 +1,7 @@
 // ponytail: all teacher PWA logic — install gate, pairing, attendance, sync, reports
 (function () {
   'use strict';
+  const esc = ATT.esc;
 
   // --- Install gate ---
   const isInstalled = window.matchMedia('(display-mode: standalone)').matches
@@ -57,8 +58,10 @@
       setState('connecting');
       checkConnection();
     }
-    setInterval(() => {
-      if (pairing && connectionState !== 'revoked') syncPending();
+    setInterval(async () => {
+      if (!pairing || connectionState === 'revoked') return;
+      if (connectionState === 'offline') await checkConnection();
+      if (connectionState === 'connected' || connectionState === 'sync-pending') syncPending();
     }, 30000);
     const dateInput = document.getElementById('attDate');
     if (dateInput) {
@@ -73,7 +76,7 @@
     if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
   }
 
-  function today() { return new Date().toISOString().slice(0, 10); }
+  function today() { return ATT.localDate(); }
 
   // --- Screens ---
   function showScreen(name) {
@@ -142,8 +145,8 @@
 
   // --- Auto-reconnect ---
   async function checkConnection() {
-    await ATT.pairing.reconnect();
     try {
+      await ATT.pairing.reconnect();
       const user = await api('/me');
       if (user.iceServers) ATT.ICE = user.iceServers; // upgrade ICE (TURN) for paired device
       pairing.user = user;
@@ -254,7 +257,7 @@
       selectorContainer.classList.remove('hidden');
       classNameText.classList.add('hidden');
       selector.innerHTML = myAssignments.map((a, idx) => 
-        `<option value="${idx}">${a.classLabel || a.classId} (${a.type === 'class_teacher' ? 'Class' : 'Subject'})</option>`
+        `<option value="${idx}">${esc(a.classLabel || a.classId)} (${a.type === 'class_teacher' ? 'Class' : 'Subject'})</option>`
       ).join('');
       changeAssignment(0);
     } else {
@@ -466,11 +469,11 @@
         return `<div class="student-row" style="flex-wrap:wrap">
           <div style="display:flex;align-items:center;width:100%;justify-content:space-between">
             <span class="student-roll">${s.rollNo}</span>
-            <span class="student-name" style="flex:1;margin-left:8px">${s.name}</span>
+            <span class="student-name" style="flex:1;margin-left:8px">${esc(s.name)}</span>
             <span class="badge ${badge}" style="margin-right:8px">${att.status.toUpperCase()}</span>
-            ${att.id ? `<button class="btn-sm btn-outline" style="font-size:0.75rem;padding:4px 8px;min-height:28px" onclick="requestCorrection('${att.id}','${s.id}','${s.name.replace(/'/g, "\\'")}')">Request Correction</button>` : `<span style="color:var(--muted);font-size:0.75rem">No saved record</span>`}
+            ${att.id ? `<button class="btn-sm btn-outline" style="font-size:0.75rem;padding:4px 8px;min-height:28px" onclick="requestCorrection('${att.id}','${s.id}')">Request Correction</button>` : `<span style="color:var(--muted);font-size:0.75rem">No saved record</span>`}
           </div>
-          ${att.note ? `<div style="font-size:0.75rem;color:var(--muted);width:100%;margin-top:4px;padding-left:32px">Note: ${att.note}</div>` : ''}
+          ${att.note ? `<div style="font-size:0.75rem;color:var(--muted);width:100%;margin-top:4px;padding-left:32px">Note: ${esc(att.note)}</div>` : ''}
         </div>`;
       }).join('');
     } else {
@@ -479,14 +482,14 @@
         return `<div class="student-row" style="flex-wrap:wrap">
           <div style="display:flex;align-items:center;width:100%;justify-content:space-between">
             <span class="student-roll">${s.rollNo}</span>
-            <span class="student-name" style="flex:1;margin-left:8px">${s.name}</span>
+            <span class="student-name" style="flex:1;margin-left:8px">${esc(s.name)}</span>
             <button class="att-btn att-P ${att.status === 'present' ? 'sel' : ''}" onclick="setAtt('${s.id}','present')">P</button>
             <button class="att-btn att-A ${att.status === 'absent' ? 'sel' : ''}" onclick="setAtt('${s.id}','absent')">A</button>
             <button class="att-btn att-L ${att.status === 'late' ? 'sel' : ''}" onclick="setAtt('${s.id}','late')">L</button>
             <button class="att-btn att-V ${att.status === 'leave' ? 'sel' : ''}" onclick="setAtt('${s.id}','leave')">V</button>
           </div>
           <div style="width:100%;margin-top:4px;padding:0 8px">
-            <input type="text" placeholder="Add note (optional)" value="${att.note || ''}" onchange="setNote('${s.id}',this.value)" style="width:100%;margin:0;font-size:0.8rem;padding:4px 8px;border:1px solid #2d3748;border-radius:4px;background:#1a202c;color:white">
+            <input type="text" maxlength="500" placeholder="Add note (optional)" value="${esc(att.note || '')}" onchange="setNote('${s.id}',this.value)" style="width:100%;margin:0;font-size:0.8rem;padding:6px 8px">
           </div>
         </div>`;
       }).join('');
@@ -545,7 +548,8 @@
     setTimeout(() => { btn.innerHTML = orig; btn.style.background = ''; lucide.createIcons(); }, 2000);
   };
 
-  window.requestCorrection = async function (attId, studentId, studentName) {
+  window.requestCorrection = async function (attId, studentId) {
+    const studentName = students.find(s => s.id === studentId)?.name || 'student';
     if (!attId) {
       alert('Cannot request correction: no attendance record exists for this student on this date.');
       return;
@@ -676,7 +680,7 @@
           <thead><tr><th>#</th><th>Name</th><th>P</th><th>A</th><th>%</th></tr></thead>
           <tbody>${data.summary.map(s => `<tr>
             <td>${s.rollNo}</td>
-            <td>${s.name}</td>
+            <td>${esc(s.name)}</td>
             <td><span class="badge badge-green">${s.present}</span></td>
             <td><span class="badge badge-red">${s.absent}</span></td>
             <td>${s.percentage}%</td>
@@ -686,7 +690,7 @@
         const data = await api(`/reports/daily/${currentClassId}/${date}`);
         if (!data.rows.length) { el.innerHTML = '<p style="color:var(--muted)">No records found</p>'; return; }
         el.innerHTML = `
-          <div class="card mb-8" style="background:#1a1d27;padding:12px;font-size:0.8rem">
+          <div class="card mb-8" style="padding:12px;font-size:0.8rem">
             Present: <strong style="color:var(--green)">${data.stats.present}</strong> |
             Absent: <strong style="color:var(--red)">${data.stats.absent}</strong> |
             Late: <strong style="color:var(--yellow)">${data.stats.late}</strong> |
@@ -699,9 +703,9 @@
               const displayStatus = r.status === 'not_marked' ? 'Not Marked' : r.status.toUpperCase();
               return `<tr>
                 <td>${r.rollNo}</td>
-                <td>${r.name}</td>
+                <td>${esc(r.name)}</td>
                 <td><span class="badge ${badge}">${displayStatus}</span></td>
-                <td style="font-size:0.75rem;color:var(--muted)">${r.note || ''}</td>
+                <td style="font-size:0.75rem;color:var(--muted)">${esc(r.note || '')}</td>
               </tr>`;
             }).join('')}</tbody>
           </table>`;
@@ -709,8 +713,8 @@
         const dateObj = new Date(date);
         const day = dateObj.getDay();
         const diffToMon = dateObj.getDate() - day + (day === 0 ? -6 : 1);
-        const mon = new Date(dateObj.setDate(diffToMon)).toISOString().slice(0, 10);
-        const sun = new Date(dateObj.setDate(diffToMon + 6)).toISOString().slice(0, 10);
+        const mon = ATT.localDate(new Date(dateObj.setDate(diffToMon)));
+        const sun = ATT.localDate(new Date(dateObj.setDate(diffToMon + 6)));
 
         const data = await api(`/reports/weekly/${currentClassId}?start=${mon}&end=${sun}`);
         if (!data.rows.length) { el.innerHTML = '<p style="color:var(--muted)">No records</p>'; return; }
@@ -743,7 +747,7 @@
             }).join('');
             return `<tr>
               <td>${r.rollNo}</td>
-              <td style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px">${r.name}</td>
+              <td style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px">${esc(r.name)}</td>
               ${dayCells}
               <td style="text-align:center">${r.present}/${r.total}</td>
             </tr>`;
@@ -756,7 +760,7 @@
           <thead><tr><th>#</th><th>Name</th><th>P</th><th>A</th><th>L/V</th><th>%</th></tr></thead>
           <tbody>${data.rows.map(r => `<tr>
             <td>${r.rollNo}</td>
-            <td>${r.name}</td>
+            <td>${esc(r.name)}</td>
             <td><span class="badge badge-green">${r.present}</span></td>
             <td><span class="badge badge-red">${r.absent}</span></td>
             <td><span class="badge badge-blue">${r.leave}</span></td>
@@ -778,7 +782,7 @@
       const list = await api('/students/' + currentClassId);
       el.innerHTML = `<table>
         <thead><tr><th>#</th><th>Name</th></tr></thead>
-        <tbody>${list.map(s => `<tr><td>${s.rollNo}</td><td>${s.name}</td></tr>`).join('')}</tbody>
+        <tbody>${list.map(s => `<tr><td>${s.rollNo}</td><td>${esc(s.name)}</td></tr>`).join('')}</tbody>
       </table>`;
     } catch {
       el.innerHTML = '<p style="color:var(--muted)">Offline</p>';

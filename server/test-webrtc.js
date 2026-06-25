@@ -1,63 +1,47 @@
-// ponytail: self-test — proves /signal establishes a WebRTC DataChannel and
-// dispatches a framed request to the (stubbed) loopback handler. werift plays
-// the "browser" peer. Run: node test-webrtc.js
+// ponytail: signalling + DataChannel request self-check. Real Chromium interop is smoke-tested separately.
 const http = require('http');
 const { WebSocket } = require('ws');
-const { RTCPeerConnection } = require('werift');
-const { attachSignal } = require('./signal');
+const rtc = require('node-datachannel');
+const { attachSignal, cleanupRtc } = require('./signal');
 
 const PORT = 3999;
+const server = http.createServer();
+const signalling = attachSignal(server, {
+  iceServers: [],
+  dispatch: async (method, path, body, ctx) => ({ status: 200, body: { method, path, token: ctx.token } }),
+});
 
-function main() {
-  const server = http.createServer();
-  // stub dispatch: echoes path + token so we can assert the bridge works
-  attachSignal(server, {
-    iceServers: [],
-    dispatch: async (method, path, body, ctx) =>
-      ({ status: 200, body: { echo: { method, path, token: ctx.token } } }),
-  });
-
-  server.listen(PORT, '127.0.0.1', async () => {
-    const ws = new WebSocket(`ws://127.0.0.1:${PORT}/signal`);
-    const pc = new RTCPeerConnection({ iceServers: [] });
-    const dc = pc.createDataChannel('api');
-
-    const timer = setTimeout(() => fail('timed out — no reply over DataChannel'), 8000);
-
-    pc.onIceCandidate.subscribe((c) => {
-      const cand = (c && c.candidate) ? c.candidate : c;
-      if (cand) ws.send(JSON.stringify({ type: 'ice', candidate: cand.toJSON ? cand.toJSON() : cand }));
-    });
-
-    ws.on('open', async () => {
-      const offer = await pc.createOffer();
-      await pc.setLocalDescription(offer);
-      ws.send(JSON.stringify({ type: 'offer', sdp: pc.localDescription }));
-    });
-
-    ws.on('message', async (raw) => {
-      const msg = JSON.parse(raw.toString());
-      if (msg.type === 'answer') await pc.setRemoteDescription(msg.sdp);
-      else if (msg.type === 'ice') await pc.addIceCandidate(msg.candidate);
-    });
-
-    dc.stateChanged.subscribe((state) => {
-      if (state === 'open') dc.send(JSON.stringify({ id: 'r1', method: 'GET', path: '/api/me', token: 'secret-123' }));
-    });
-
-    dc.onMessage.subscribe((data) => {
-      const reply = JSON.parse(typeof data === 'string' ? data : data.toString());
-      clearTimeout(timer);
-      const e = reply.body && reply.body.echo;
-      if (reply.id === 'r1' && reply.status === 200 && e && e.path === '/api/me' && e.token === 'secret-123') {
-        console.log('PASS: WebRTC DataChannel request reached dispatch and replied:', JSON.stringify(reply.body));
-        pc.close(); ws.close(); server.close(); process.exit(0);
-      } else {
-        fail('unexpected reply: ' + JSON.stringify(reply));
-      }
-    });
-  });
+function finish(code, message) {
+  console[code ? 'error' : 'log'](message);
+  signalling.close(() => server.close(() => {
+    cleanupRtc();
+    process.exit(code);
+  }));
 }
 
-function fail(m) { console.error('FAIL:', m); process.exit(1); }
-main();
+server.listen(PORT, '127.0.0.1', () => {
+  const ws = new WebSocket(`ws://127.0.0.1:${PORT}/signal`);
+  const pc = new rtc.PeerConnection('test-client', { iceServers: [] });
+  const timer = setTimeout(() => finish(1, 'FAIL: timed out'), 8000);
+
+  pc.onLocalDescription((sdp, type) => ws.send(JSON.stringify({ type: 'offer', sdp: { sdp, type } })));
+  pc.onLocalCandidate((candidate, mid) => ws.send(JSON.stringify({ type: 'ice', candidate: { candidate, sdpMid: mid } })));
+
+  ws.on('message', raw => {
+    const msg = JSON.parse(raw.toString());
+    if (msg.type === 'answer') pc.setRemoteDescription(msg.sdp.sdp, msg.sdp.type);
+    else if (msg.type === 'ice') pc.addRemoteCandidate(msg.candidate.candidate, msg.candidate.sdpMid || '0');
+  });
+
+  ws.on('open', () => {
+    const dc = pc.createDataChannel('api');
+    dc.onOpen(() => dc.sendMessage(JSON.stringify({ id: 'r1', method: 'GET', path: '/api/me', token: 'secret-123' })));
+    dc.onMessage(data => {
+      const reply = JSON.parse(typeof data === 'string' ? data : data.toString());
+      clearTimeout(timer);
+      const ok = reply.id === 'r1' && reply.status === 200 && reply.body?.path === '/api/me' && reply.body?.token === 'secret-123';
+      try { dc.close(); pc.close(); ws.close(); } catch {}
+      finish(ok ? 0 : 1, ok ? 'PASS: WebRTC DataChannel request reached dispatch' : `FAIL: ${JSON.stringify(reply)}`);
+    });
+  });
+});

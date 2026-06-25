@@ -3,28 +3,32 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="theme-color" content="#6366f1">
+  <meta name="theme-color" content="#155e75">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <title>Attendance Admin</title>
   <link rel="manifest" href="manifest.json">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%236366f1'/><text x='50' y='68' font-size='50' text-anchor='middle' fill='white'>⚙</text></svg>">
-  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="../shared/vendor/lucide.min.js"></script>
+  <script src="../shared/config.js"></script>
+  <script src="../shared/connection.js"></script>
+  <script src="../shared/pairing.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    :root { --bg:#0f1117; --surface:#1a1d27; --border:#2a2d3a; --text:#e4e4e7; --muted:#71717a; --accent:#6366f1; --green:#22c55e; --red:#ef4444; --yellow:#eab308; --blue:#3b82f6; --radius:10px; }
-    body { font-family: system-ui, sans-serif; background: var(--bg); color: var(--text); padding: 0; margin: 0; }
+    :root { --bg:#edf4f1; --surface:#fff; --border:#c8d8d2; --text:#17332d; --muted:#60756e; --accent:#155e75; --green:#15803d; --red:#b91c1c; --yellow:#a16207; --blue:#1d4ed8; --radius:12px; }
+    body { font-family:"Trebuchet MS","Nirmala UI",sans-serif; background:linear-gradient(135deg,rgba(21,94,117,.07),transparent 42%),repeating-linear-gradient(0deg,transparent 0 31px,rgba(23,51,45,.035) 31px 32px),var(--bg); color:var(--text); padding:0; margin:0; }
     .wrap { max-width: 900px; margin: 0 auto; padding: 12px; min-height: 100vh; }
-    h1 { font-size: 1.2rem; display: flex; align-items: center; gap: 8px; padding: 8px 0 12px; }
+    h1 { font-family:Georgia,serif; font-size:1.25rem; letter-spacing:-.01em; display:flex; align-items:center; gap:8px; padding:8px 0 12px; }
     h2 { font-size: .95rem; color: var(--muted); margin: 16px 0 8px; }
-    .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; margin-bottom: 12px; }
+    .card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:16px; margin-bottom:12px; box-shadow:0 5px 18px rgba(23,51,45,.06); }
     .tabs { display: flex; gap: 4px; margin-bottom: 16px; flex-wrap: wrap; }
     .tab { padding: 8px 14px; border: 1px solid var(--border); border-radius: var(--radius); background: none; color: var(--muted); cursor: pointer; font-size: .8rem; display: inline-flex; align-items: center; gap: 4px; min-height: 40px; }
     .tab.active { background: var(--accent); color: white; border-color: var(--accent); }
     label { display: block; font-size: .8rem; color: var(--muted); margin-bottom: 4px; }
-    input, select, textarea { width: 100%; padding: 8px 12px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg); color: var(--text); font-size: .9rem; margin-bottom: 8px; }
+    input, select, textarea { width:100%; padding:9px 12px; border:1px solid var(--border); border-radius:var(--radius); background:var(--surface); color:var(--text); font-size:.9rem; margin-bottom:8px; }
     textarea { resize: vertical; }
     button { padding: 8px 16px; border: none; border-radius: var(--radius); cursor: pointer; font-size: .85rem; display: inline-flex; align-items: center; gap: 6px; min-height: 40px; }
     button:active { opacity: .7; }
+    button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible { outline:3px solid rgba(21,94,117,.25); outline-offset:2px; }
     .btn-primary { background: var(--accent); color: white; }
     .btn-success { background: var(--green); color: white; }
     .btn-danger { background: var(--red); color: white; }
@@ -35,10 +39,10 @@
     th, td { padding: 8px 6px; text-align: left; border-bottom: 1px solid var(--border); }
     th { color: var(--muted); font-weight: 500; }
     .badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: .7rem; }
-    .badge-green { background: #22c55e22; color: var(--green); }
-    .badge-red { background: #ef444422; color: var(--red); }
-    .badge-yellow { background: #eab30822; color: var(--yellow); }
-    .badge-blue { background: #3b82f622; color: var(--blue); }
+    .badge-green { background:#dcfce7; color:var(--green); }
+    .badge-red { background:#fee2e2; color:var(--red); }
+    .badge-yellow { background:#fef3c7; color:var(--yellow); }
+    .badge-blue { background:#dbeafe; color:var(--blue); }
     .qr-container { text-align: center; padding: 16px; }
     .qr-container img { max-width: 250px; border-radius: var(--radius); }
     .hidden { display: none !important; }
@@ -46,7 +50,7 @@
     .row > * { flex: 1; min-width: 140px; }
     .status { font-size: .8rem; color: var(--muted); padding: 8px 0; }
     .action-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 8px; margin-bottom: 16px; }
-    .action-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 10px; display: flex; flex-direction: column; align-items: center; gap: 6px; cursor: pointer; text-align: center; font-size: .8rem; }
+    .action-card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:14px 10px; display:flex; flex-direction:column; align-items:center; gap:6px; cursor:pointer; text-align:center; font-size:.8rem; box-shadow:0 4px 14px rgba(23,51,45,.05); }
     .action-card:active { opacity: .7; }
     .action-card i { color: var(--accent); }
     .stat-row { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid var(--border); font-size: .85rem; }
@@ -57,7 +61,8 @@
     .install-screen .steps { text-align: left; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; font-size: .85rem; line-height: 1.6; }
     .scan-area { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; padding: 20px; min-height: 50vh; }
     .scan-area p { color: var(--muted); text-align: center; }
-    @media (max-width: 600px) { .wrap { padding: 8px; } }
+    @media (max-width: 600px) { .wrap { padding: 8px; } .tabs { overflow-x:auto; flex-wrap:nowrap; padding-bottom:4px; } .tab { flex:0 0 auto; } }
+    @media (prefers-reduced-motion:reduce) { *,*::before,*::after { scroll-behavior:auto !important; } }
   </style>
 </head>
 <body>
@@ -84,15 +89,13 @@
   <div id="pairingScreen" class="hidden">
     <div class="scan-area">
       <i data-lucide="scan-line" style="width:48px;height:48px;color:var(--accent)"></i>
-      <p>Scan the enrollment QR code<br>or enter pairing details below</p>
+      <p>Scan the enrollment QR code<br>or enter the 6-digit code below</p>
       <video id="pairVideo" autoplay playsinline class="hidden" style="width:100%;max-width:300px;border-radius:var(--radius);border:2px solid var(--accent)"></video>
       <button class="btn-primary" id="btnStartPairScan" onclick="startPairScan()">
         <i data-lucide="camera" style="width:18px;height:18px"></i> Scan QR Code
       </button>
-      <div style="color:var(--muted);font-size:.8rem;margin:4px 0">— or enter details —</div>
+      <div style="color:var(--muted);font-size:.8rem;margin:4px 0">— or enter code —</div>
       <div style="width:100%;max-width:300px">
-        <label>Server Address</label>
-        <input id="pairServer" placeholder="http://192.168.1.6:3000">
         <label>6-Digit Pairing Code</label>
         <input id="pairCode" type="text" inputmode="numeric" maxlength="6" pattern="[0-9]{6}" placeholder="000000" style="font-size:1.5rem;text-align:center;letter-spacing:.3em;font-weight:700">
         <button class="btn-primary btn-block" onclick="adminPair()">
@@ -100,6 +103,25 @@
         </button>
       </div>
       <p id="pairStatus" style="color:var(--red)"></p>
+    </div>
+  </div>
+
+  <!-- First-run Setup Wizard (local admin only) -->
+  <div id="setupScreen" class="hidden">
+    <div class="card" style="max-width:480px;margin:24px auto">
+      <h1 style="padding-top:0"><i data-lucide="rocket" style="color:var(--accent)"></i> Welcome — let's set up your school</h1>
+      <p style="color:var(--muted);font-size:.85rem;margin-bottom:16px">This runs once. You can change everything later in Settings.</p>
+      <label>School name</label>
+      <input id="suSchool" placeholder="e.g. Sunrise School, Anand">
+      <label>Academic year</label>
+      <input id="suYear" placeholder="e.g. 2025-26">
+      <label>Your name (first admin)</label>
+      <input id="suAdmin" placeholder="e.g. Principal">
+      <label style="display:flex;align-items:center;gap:8px;margin-top:8px">
+        <input type="checkbox" id="suDemo" style="width:auto;margin:0"> Add demo classes & students to try it out
+      </label>
+      <button class="btn-primary btn-block" style="margin-top:12px" onclick="runSetup()"><i data-lucide="check" style="width:16px;height:16px"></i> Finish setup</button>
+      <p id="suStatus" style="color:var(--red);font-size:.85rem;margin-top:8px"></p>
     </div>
   </div>
 
@@ -115,7 +137,10 @@
       <button class="tab" onclick="showTab('devices',this)"><i data-lucide="smartphone" style="width:14px;height:14px"></i> Devices</button>
       <button class="tab" onclick="showTab('reports',this)"><i data-lucide="bar-chart-3" style="width:14px;height:14px"></i> Reports</button>
       <button class="tab" onclick="showTab('backup',this)"><i data-lucide="database" style="width:14px;height:14px"></i> Backup</button>
+      <button class="tab" onclick="showTab('corrections',this)"><i data-lucide="edit" style="width:14px;height:14px"></i> Corrections <span id="corrBadge" class="badge badge-yellow hidden">0</span></button>
       <button class="tab" onclick="showTab('settings',this)"><i data-lucide="settings" style="width:14px;height:14px"></i> Settings</button>
+      <button class="tab" onclick="showTab('audit',this)"><i data-lucide="scroll-text" style="width:14px;height:14px"></i> Activity</button>
+      <button class="tab" onclick="showTab('diagnostics',this)"><i data-lucide="stethoscope" style="width:14px;height:14px"></i> Diagnostics</button>
     </div>
 
     <!-- HOME -->
@@ -159,7 +184,7 @@
       <textarea id="csvData" rows="4" placeholder="name,rollNo&#10;Aarav Patel,1&#10;Diya Shah,2"></textarea>
       <div style="display:flex;gap:8px">
         <button class="btn-primary" onclick="importCSV()"><i data-lucide="upload" style="width:14px;height:14px"></i> Import</button>
-        <a href="/api/students/csv-sample" download class="btn-outline" style="text-decoration:none;padding:8px 16px;border-radius:var(--radius);font-size:.85rem;display:inline-flex;align-items:center;gap:6px;border:1px solid var(--border);color:var(--text)"><i data-lucide="download" style="width:14px;height:14px"></i> Sample CSV</a>
+        <button class="btn-outline" onclick="downloadFile('/api/students/csv-sample','student-import-sample.csv')"><i data-lucide="download" style="width:14px;height:14px"></i> Sample CSV</button>
       </div>
       <div id="importResult" class="hidden" style="margin-top:8px"></div>
 
@@ -204,6 +229,18 @@
       </div>
       <button class="btn-primary" onclick="assignSubjectTeacher()"><i data-lucide="check" style="width:14px;height:14px"></i> Assign</button>
 
+      <h2>Temporary Substitute</h2>
+      <div class="row">
+        <div><label>Substitute Teacher</label><select id="subTeacher"></select></div>
+        <div><label>Class</label><select id="subClass"></select></div>
+      </div>
+      <div class="row">
+        <div><label>Start Date</label><input type="date" id="subStart"></div>
+        <div><label>End Date</label><input type="date" id="subEnd"></div>
+      </div>
+      <input id="subReason" placeholder="Reason (optional, e.g. teacher on leave)">
+      <button class="btn-primary" onclick="assignSubstitute()"><i data-lucide="user-cog" style="width:14px;height:14px"></i> Assign Substitute</button>
+
       <h2>Current Assignments</h2>
       <div style="overflow-x:auto"><table><thead><tr><th>Teacher</th><th>Class</th><th>Type</th><th>Days</th><th>Actions</th></tr></thead><tbody id="assignRows"></tbody></table></div>
     </div>
@@ -243,7 +280,7 @@
         <div id="reportMonthCol" class="hidden" style="flex:1;min-width:120px"><label>Month</label><input type="month" id="reportMonth" onchange="changeReport()"></div>
       </div>
       <div class="row" style="margin-bottom:12px;display:flex;gap:8px">
-        <a id="exportLink" class="btn-sm btn-outline hidden" download style="text-decoration:none;color:var(--text);display:inline-flex;align-items:center;gap:4px"><i data-lucide="download" style="width:14px;height:14px"></i> Export CSV</a>
+        <button id="exportLink" class="btn-sm btn-outline hidden"><i data-lucide="download" style="width:14px;height:14px"></i> Export CSV</button>
       </div>
       <div id="reportContent"></div>
     </div>
@@ -253,7 +290,8 @@
       <h2>Backup & Restore</h2>
       <div id="backupStatus" class="mb-12"></div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
-        <a href="/api/backup/download" download class="btn-primary" style="text-decoration:none;color:white"><i data-lucide="download" style="width:14px;height:14px"></i> Download Backup</a>
+        <button class="btn-primary" onclick="downloadFile('/api/backup/download','attendance-backup-'+ATT.localDate()+'.json')"><i data-lucide="download" style="width:14px;height:14px"></i> Download Backup</button>
+        <button class="btn-success" onclick="createBackupNow()"><i data-lucide="save" style="width:14px;height:14px"></i> Backup Now</button>
         <button class="btn-outline" onclick="document.getElementById('restoreFile').click()"><i data-lucide="upload" style="width:14px;height:14px"></i> Restore from File</button>
         <input type="file" id="restoreFile" accept=".json" class="hidden" onchange="restoreBackup(this)">
       </div>
@@ -268,12 +306,48 @@
       <label>Academic Year</label><input id="setAcademicYear">
       <label>Lock Attendance After (hours)</label><input id="setLockHours" type="number">
       <button class="btn-primary" onclick="saveSettings()"><i data-lucide="save" style="width:14px;height:14px"></i> Save Settings</button>
+
+      <h2 style="margin-top:20px">Holidays</h2>
+      <p style="color:var(--muted);font-size:.8rem;margin-bottom:8px">Teachers see a warning before marking on these days.</p>
+      <div class="row">
+        <div><label>Date</label><input type="date" id="holDate"></div>
+        <div><label>Name</label><input id="holName" placeholder="e.g. Diwali"></div>
+      </div>
+      <button class="btn-outline btn-sm" onclick="addHoliday()"><i data-lucide="plus" style="width:14px;height:14px"></i> Add Holiday</button>
+      <div id="holidayList" style="margin-top:8px"></div>
     </div>
 
     <!-- CORRECTIONS -->
     <div id="tab-corrections" class="card hidden">
-      <h2>Pending Corrections</h2>
+      <h2>Correction Requests</h2>
       <div id="correctionRows"></div>
+    </div>
+
+    <!-- ACTIVITY LOG -->
+    <div id="tab-audit" class="card hidden">
+      <h2>Activity Log</h2>
+      <p style="color:var(--muted);font-size:.8rem;margin-bottom:8px">Recent changes made in the system.</p>
+      <div style="overflow-x:auto" id="auditRows"></div>
+    </div>
+
+    <!-- DIAGNOSTICS -->
+    <div id="tab-diagnostics" class="card hidden">
+      <h2>Diagnostics</h2>
+      <p style="color:var(--muted);font-size:.8rem;margin-bottom:8px">For troubleshooting. Not needed for daily use.</p>
+      <div id="diagBody"></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">
+        <button class="btn-outline btn-sm" onclick="copyDiag()"><i data-lucide="copy" style="width:14px;height:14px"></i> Copy report</button>
+        <button class="btn-outline btn-sm" onclick="downloadFile('/api/diagnostics','diagnostics.json')"><i data-lucide="download" style="width:14px;height:14px"></i> Download report</button>
+      </div>
+      <div class="card" style="margin-top:12px;background:var(--bg)">
+        <h2 style="margin-top:0">If something is wrong</h2>
+        <ul style="font-size:.82rem;line-height:1.7;padding-left:18px;color:var(--text)">
+          <li><strong>App won't pair:</strong> ask the office admin to open this panel and make a new code, then scan/type it.</li>
+          <li><strong>"Remote access is off":</strong> the office PC or its internet is down. Local Wi-Fi still works.</li>
+          <li><strong>App shows old screens:</strong> close and reopen the installed app — it refreshes itself.</li>
+          <li><strong>Device removed:</strong> the admin can restore it in the Devices tab.</li>
+        </ul>
+      </div>
     </div>
   </div>
 
@@ -282,12 +356,11 @@
 
 <script>
   // --- State ---
-  let API = '';
+  let API = '';            // base for <a download> links (local server only)
   let users = [], classes = [], students = [], assignments = [], devices = [];
-  let adminPairing = null; // { server, deviceId }
 
-  // --- Install gate ---
-  const isLocalHost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+  // --- Install gate (the PC's localhost bypasses; remote admin must install) ---
+  const isLocalHost = ATT.isOfficePc();
   const isInstalled = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true || isLocalHost;
   let deferredPrompt = null;
   window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); deferredPrompt = e; });
@@ -299,53 +372,80 @@
   if (!isInstalled) { lucide.createIcons(); /* only install screen */ }
   else { document.getElementById('installGate').classList.add('hidden'); document.getElementById('realApp').classList.remove('hidden'); bootAdmin(); }
 
-  // --- SW ---
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
 
-  function genId() {
-    if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
-    return 'xxxx-xxxx-xxxx'.replace(/x/g, () => (Math.random() * 16 | 0).toString(16)) + '-' + Date.now().toString(36);
-  }
-
-  function bootAdmin() {
-    // Check if running on same server (local) or needs pairing (remote/GitHub Pages)
-    const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.port === '3000';
-    adminPairing = JSON.parse(localStorage.getItem('adminPairing') || 'null');
-
-    if (isLocal) {
-      API = window.location.origin + '/api';
-      document.getElementById('adminMain').classList.remove('hidden');
-      loadAll();
-    } else if (adminPairing) {
-      API = adminPairing.server + '/api';
-      document.getElementById('adminMain').classList.remove('hidden');
-      loadAll();
+  async function bootAdmin() {
+    if (ATT.isOfficePc()) {
+      // Served by the local server on the office PC → trusted local admin, no pairing needed.
+      API = location.origin + '/api';
+      ATT.conn.setEndpoint(location.origin, null);
+      const s = await f('/settings').catch(() => ({ setupDone: false }));
+      if (!s.setupDone) document.getElementById('setupScreen').classList.remove('hidden');
+      else showAdminMain();
     } else {
-      document.getElementById('pairingScreen').classList.remove('hidden');
+      try {
+        const p = await ATT.pairing.reconnect();
+        if (p && p.role === 'admin') { API = p.server + '/api'; showAdminMain(); }
+        else document.getElementById('pairingScreen').classList.remove('hidden');
+      } catch (e) {
+        document.getElementById('pairingScreen').classList.remove('hidden');
+        document.getElementById('pairStatus').textContent = e.message;
+      }
     }
     lucide.createIcons();
   }
 
+  function showAdminMain() {
+    document.getElementById('pairingScreen').classList.add('hidden');
+    document.getElementById('setupScreen').classList.add('hidden');
+    document.getElementById('adminMain').classList.remove('hidden');
+    loadAll();
+  }
+
+  window.runSetup = async function () {
+    const schoolName = document.getElementById('suSchool').value.trim();
+    const status = document.getElementById('suStatus');
+    if (!schoolName) { status.textContent = 'Please enter a school name'; return; }
+    status.textContent = 'Setting up…'; status.style.color = 'var(--yellow)';
+    try {
+      await post('/setup', {
+        schoolName,
+        academicYear: document.getElementById('suYear').value.trim(),
+        adminName: document.getElementById('suAdmin').value.trim() || 'Admin',
+        demoData: document.getElementById('suDemo').checked,
+      });
+      showAdminMain();
+    } catch (e) { status.textContent = e.message || 'Setup failed'; status.style.color = 'var(--red)'; }
+  };
+
+  // Token-aware file download — works for local admin AND remote (paired) admin.
+  async function downloadFile(apiPath, filename) {
+    const base = API.replace(/\/api$/, '');
+    const token = (ATT.pairing.get() || {}).deviceToken;
+    const headers = { 'Bypass-Tunnel-Reminder': 'true' };
+    if (token) headers['x-device-token'] = token;
+    try {
+      const res = await fetch(base + apiPath, { headers });
+      if (!res.ok) return alert('Download failed (' + res.status + ')');
+      const blob = await res.blob();
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob); a.download = filename; document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+    } catch { alert('Download failed — cannot reach the server.'); }
+  }
+  window.downloadFile = downloadFile;
+
   window.adminPair = async function() {
-    const server = document.getElementById('pairServer').value.trim().replace(/\/+$/, '');
     const code = document.getElementById('pairCode').value.trim();
     const status = document.getElementById('pairStatus');
-    if (!server) { status.textContent = 'Enter server address'; return; }
-    if (!code || code.length !== 6) { status.textContent = 'Enter 6-digit code'; return; }
-    status.textContent = 'Pairing...'; status.style.color = 'var(--yellow)';
+    if (!code || code.length !== 6) { status.textContent = 'Enter the 6-digit code from the office admin screen'; status.style.color = 'var(--red)'; return; }
+    status.textContent = 'Pairing…'; status.style.color = 'var(--yellow)';
     try {
-      const deviceId = genId();
-      const res = await fetch(server + '/api/enroll', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Bypass-Tunnel-Reminder': 'true' }, body: JSON.stringify({ code, deviceId }) });
-      if (!res.ok) { const err = await res.json(); throw new Error(err.error); }
-      const result = await res.json();
-      if (result.user.role !== 'admin') throw new Error('This code is not for an admin user');
-      adminPairing = { server, deviceId };
-      localStorage.setItem('adminPairing', JSON.stringify(adminPairing));
-      API = server + '/api';
-      document.getElementById('pairingScreen').classList.add('hidden');
-      document.getElementById('adminMain').classList.remove('hidden');
-      loadAll();
-    } catch (e) { status.textContent = e.message; status.style.color = 'var(--red)'; }
+      // Server address is optional — defaults to the school's public address. Role is enforced server-side.
+      const pairing = await ATT.pairing.enroll({ code, expectApp: 'admin' });
+      API = pairing.server + '/api';
+      showAdminMain();
+    } catch (e) { status.textContent = e.message || 'Pairing failed'; status.style.color = 'var(--red)'; }
   };
 
   let pairScanning = false, pairScanStream = null;
@@ -394,25 +494,14 @@
 
   async function processAdminQR(raw) {
     const status = document.getElementById('pairStatus');
+    const inv = ATT.pairing.parseQR(raw);
+    if (!inv) { status.textContent = 'This QR is not valid. Ask for a new code.'; status.style.color = 'var(--red)'; return; }
+    status.textContent = 'Pairing…'; status.style.color = 'var(--yellow)';
     try {
-      const data = JSON.parse(raw);
-      if (!data.server || !data.token) throw new Error('Invalid QR data');
-      status.textContent = 'Enrolling...'; status.style.color = 'var(--yellow)';
-      const deviceId = genId();
-      const res = await fetch(data.server + '/api/enroll', {
-        method: 'POST', headers: { 'Content-Type': 'application/json', 'Bypass-Tunnel-Reminder': 'true' },
-        body: JSON.stringify({ token: data.token, deviceId }),
-      });
-      if (!res.ok) { const err = await res.json(); throw new Error(err.error || 'Enrollment failed'); }
-      const result = await res.json();
-      if (result.user.role !== 'admin') throw new Error('This QR code is not for an admin user');
-      adminPairing = { server: data.server, deviceId };
-      localStorage.setItem('adminPairing', JSON.stringify(adminPairing));
-      API = data.server + '/api';
-      document.getElementById('pairingScreen').classList.add('hidden');
-      document.getElementById('adminMain').classList.remove('hidden');
-      loadAll();
-    } catch (e) { status.textContent = e.message; status.style.color = 'var(--red)'; }
+      const pairing = await ATT.pairing.enroll({ server: inv.server, token: inv.token, expectApp: 'admin' });
+      API = pairing.server + '/api';
+      showAdminMain();
+    } catch (e) { status.textContent = e.message || 'Pairing failed'; status.style.color = 'var(--red)'; }
   }
 
   // --- Tabs ---
@@ -430,7 +519,72 @@
     if (name === 'reports') populateReportDropdowns();
     if (name === 'backup') loadBackupInfo();
     if (name === 'settings') loadSettings();
+    if (name === 'corrections') loadCorrections();
+    if (name === 'audit') loadAudit();
+    if (name === 'diagnostics') loadDiagnostics();
   }
+
+  // --- CORRECTIONS ---
+  async function loadCorrections() {
+    const el = document.getElementById('correctionRows');
+    el.innerHTML = '<p style="color:var(--muted)">Loading…</p>';
+    try {
+      const list = await f('/corrections');
+      if (!list.length) { el.innerHTML = '<p style="color:var(--muted)">No correction requests.</p>'; return; }
+      el.innerHTML = `<table><thead><tr><th>Student</th><th>Class</th><th>Date</th><th>Change</th><th>Reason</th><th>Status</th><th></th></tr></thead><tbody>${
+        list.map(c => `<tr>
+          <td>${esc(c.studentName) || '?'}</td><td>${esc(c.classLabel)}</td><td>${esc(c.date)}</td>
+          <td>${esc(c.oldStatus) || '?'} → <strong>${esc(c.newStatus)}</strong></td>
+          <td style="font-size:.75rem">${esc(c.reason)}</td>
+          <td><span class="badge ${c.status === 'pending' ? 'badge-yellow' : c.status === 'approved' ? 'badge-green' : 'badge-red'}">${c.status}</span></td>
+          <td>${c.status === 'pending' ? `<button class="btn-sm btn-success" onclick="reviewCorrection('${c.id}','approve')">Approve</button> <button class="btn-sm btn-danger" onclick="reviewCorrection('${c.id}','reject')">Reject</button>` : ''}</td>
+        </tr>`).join('')}</tbody></table>`;
+    } catch { el.innerHTML = '<p style="color:var(--red)">Could not load corrections.</p>'; }
+  }
+  window.reviewCorrection = async function (id, action) {
+    await post('/corrections/' + id + '/' + action, {});
+    loadCorrections(); loadHome();
+  };
+
+  // --- ACTIVITY LOG ---
+  async function loadAudit() {
+    const el = document.getElementById('auditRows');
+    el.innerHTML = '<p style="color:var(--muted)">Loading…</p>';
+    try {
+      const list = await f('/audit?limit=200');
+      if (!list.length) { el.innerHTML = '<p style="color:var(--muted)">No activity yet.</p>'; return; }
+      el.innerHTML = `<table><thead><tr><th>When</th><th>Action</th><th>Detail</th></tr></thead><tbody>${
+        list.map(l => `<tr><td style="font-size:.72rem;white-space:nowrap">${new Date(l.timestamp).toLocaleString('en-IN')}</td><td>${esc(l.action).replace(/_/g, ' ')}</td><td style="font-size:.78rem;color:var(--muted)">${esc(l.detail)}</td></tr>`).join('')}</tbody></table>`;
+    } catch { el.innerHTML = '<p style="color:var(--red)">Could not load activity.</p>'; }
+  }
+
+  // --- DIAGNOSTICS ---
+  let lastDiag = null;
+  async function loadDiagnostics() {
+    const el = document.getElementById('diagBody');
+    el.innerHTML = '<p style="color:var(--muted)">Loading…</p>';
+    try {
+      const d = await f('/diagnostics');
+      lastDiag = d;
+      const row = (k, v, color) => `<div class="stat-row"><span>${k}</span><span class="stat-val" ${color ? `style="color:${color}"` : ''}>${v}</span></div>`;
+      el.innerHTML =
+        row('Server', 'Running v' + d.server.version, 'var(--green)') +
+        row('Remote access', d.tunnel.status === 'up' ? 'On' : 'Off', d.tunnel.status === 'up' ? 'var(--green)' : 'var(--red)') +
+        (d.tunnel.url ? row('Public address', d.tunnel.url) : '') +
+        row('Local address', d.server.endpoints.lan) +
+        row('Database', d.db.ok ? 'OK' : 'Problem', d.db.ok ? 'var(--green)' : 'var(--red)') +
+        row('Students / Classes / Users', `${d.db.students} / ${d.db.classes} / ${d.db.users}`) +
+        row('Connected devices', `${d.devices.active} active, ${d.devices.revoked} removed`) +
+        row('Pending corrections', d.corrections.pending) +
+        row('Last backup', d.backup.lastBackup ? new Date(d.backup.lastBackup).toLocaleString('en-IN') : 'Never', d.backup.lastBackup ? '' : 'var(--red)') +
+        row('Active pairing codes', d.invites.active) +
+        row('App version', ATT.VERSION);
+    } catch { el.innerHTML = '<p style="color:var(--red)">Could not load diagnostics.</p>'; }
+  }
+  window.copyDiag = function () {
+    if (!lastDiag) return;
+    navigator.clipboard.writeText(JSON.stringify(lastDiag, null, 2)).then(() => alert('Diagnostic report copied.'), () => alert('Copy failed.'));
+  };
 
   // --- Load all ---
   async function loadAll() {
@@ -448,25 +602,32 @@
     }
   }
 
-  async function f(path) { const r = await fetch(API + path, { headers: { 'Bypass-Tunnel-Reminder': 'true' } }); if (!r.ok) throw new Error(r.statusText); return r.json(); }
-  async function post(path, body) { const r = await fetch(API + path, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Bypass-Tunnel-Reminder': 'true' }, body: JSON.stringify(body) }); return r.json(); }
+  async function f(path) { return ATT.conn.request('/api' + path); }
+  async function post(path, body) { return ATT.conn.request('/api' + path, { method: 'POST', body }); }
+  const esc = ATT.esc;
 
   // --- HOME ---
   async function loadHome() {
     const el = document.getElementById('homeStats');
-    const today = new Date().toISOString().slice(0, 10);
+    const today = ATT.localDate();
     try {
-      const [missing, backup] = await Promise.all([f('/reports/missing/' + today), f('/backup/status')]);
+      const [missing, diag] = await Promise.all([f('/reports/missing/' + today), f('/diagnostics')]);
       const totalClasses = classes.length;
       const markedClasses = totalClasses - missing.missing.length;
+      const remote = diag.tunnel.status === 'up';
+      const pendingCorr = diag.corrections.pending;
+      const corrBadge = document.getElementById('corrBadge');
+      if (corrBadge) { corrBadge.textContent = pendingCorr; corrBadge.classList.toggle('hidden', !pendingCorr); }
       el.innerHTML = `
         <div class="stat-row"><span>Date</span><span class="stat-val">${new Date().toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' })}</span></div>
-        <div class="stat-row"><span>Classes</span><span class="stat-val">${totalClasses}</span></div>
-        <div class="stat-row"><span>Attendance Done</span><span class="stat-val">${markedClasses}/${totalClasses}</span></div>
-        <div class="stat-row"><span>Not Marked</span><span class="stat-val" style="color:${missing.missing.length ? 'var(--red)' : 'var(--green)'}">${missing.missing.length ? missing.missing.map(m => m.classLabel).join(', ') : 'All done ✓'}</span></div>
-        <div class="stat-row"><span>Users</span><span class="stat-val">${users.length}</span></div>
-        <div class="stat-row"><span>Students</span><span class="stat-val">${students.length}</span></div>
-        <div class="stat-row"><span>Last Backup</span><span class="stat-val">${backup.lastBackup ? new Date(backup.lastBackup).toLocaleString('en-IN') : 'Never'}</span></div>
+        <div class="stat-row"><span>Server</span><span class="stat-val" style="color:var(--green)">Running ✓</span></div>
+        <div class="stat-row"><span>Remote access</span><span class="stat-val" style="color:${remote ? 'var(--green)' : 'var(--red)'}">${remote ? 'On ✓' : 'Off'}</span></div>
+        <div class="stat-row"><span>Attendance done today</span><span class="stat-val">${markedClasses}/${totalClasses} classes</span></div>
+        <div class="stat-row"><span>Not marked</span><span class="stat-val" style="color:${missing.missing.length ? 'var(--red)' : 'var(--green)'}">${missing.missing.length ? missing.missing.map(m => esc(m.classLabel)).join(', ') : 'All done ✓'}</span></div>
+        <div class="stat-row"><span>Connected devices</span><span class="stat-val">${diag.devices.active}</span></div>
+        <div class="stat-row"><span>Pending corrections</span><span class="stat-val" style="color:${pendingCorr ? 'var(--yellow)' : 'var(--muted)'}">${pendingCorr}</span></div>
+        <div class="stat-row"><span>Users / Students</span><span class="stat-val">${users.length} / ${students.length}</span></div>
+        <div class="stat-row"><span>Last backup</span><span class="stat-val" style="color:${diag.backup.lastBackup ? '' : 'var(--red)'}">${diag.backup.lastBackup ? new Date(diag.backup.lastBackup).toLocaleString('en-IN') : 'Never'}</span></div>
       `;
     } catch { el.innerHTML = '<p style="color:var(--muted)">Server unavailable</p>'; }
   }
@@ -476,7 +637,7 @@
     document.getElementById('userRows').innerHTML = users.map(u => {
       const roleBadge = u.role === 'admin' ? 'badge-yellow' : u.role === 'class_teacher' ? 'badge-green' : 'badge-blue';
       return `<tr>
-        <td>${u.name}</td>
+        <td>${esc(u.name)}</td>
         <td><span class="badge ${roleBadge}">${u.role.replace(/_/g, ' ')}</span></td>
         <td><span class="badge ${u.active !== false ? 'badge-green' : 'badge-red'}">${u.active !== false ? 'Active' : 'Disabled'}</span></td>
         <td>
@@ -509,7 +670,7 @@
         const count = students.filter(s => s.classId === c.id && s.active !== false).length;
         const teacher = assignments.find(a => a.classId === c.id && a.type === 'class_teacher');
         const teacherName = teacher ? users.find(u => u.id === teacher.userId)?.name : '—';
-        return `<tr><td><strong>${c.label}</strong></td><td>${count}</td><td>${teacherName}</td></tr>`;
+        return `<tr><td><strong>${esc(c.label)}</strong></td><td>${count}</td><td>${esc(teacherName)}</td></tr>`;
       }).join('')
     }</tbody></table>`;
   }
@@ -527,7 +688,7 @@
 
   // --- STUDENTS ---
   function populateStudentDropdowns() {
-    const opts = classes.map(c => `<option value="${c.id}">${c.label}</option>`).join('');
+    const opts = classes.map(c => `<option value="${c.id}">${esc(c.label)}</option>`).join('');
     const optsAll = `<option value="">All Classes</option>` + opts;
     document.getElementById('newStudentClass').innerHTML = opts;
     document.getElementById('importClass').innerHTML = opts;
@@ -541,7 +702,7 @@
     document.getElementById('studentRows').innerHTML = sorted.map(s => {
       const cls = classes.find(c => c.id === s.classId);
       return `<tr>
-        <td>${s.rollNo}</td><td>${s.name}</td><td>${cls?.label || ''}</td>
+        <td>${s.rollNo}</td><td>${esc(s.name)}</td><td>${esc(cls?.label || '')}</td>
         <td><span class="badge ${s.active !== false ? 'badge-green' : 'badge-red'}">${s.active !== false ? 'Active' : 'Inactive'}</span></td>
         <td><button class="btn-sm ${s.active !== false ? 'btn-danger' : 'btn-success'}" onclick="toggleStudent('${s.id}')">${s.active !== false ? 'Disable' : 'Enable'}</button></td>
       </tr>`;
@@ -572,24 +733,33 @@
     const classId = document.getElementById('importClass').value;
     const csv = document.getElementById('csvData').value.trim();
     if (!csv) return alert('Paste CSV data');
-    const result = await post('/students/import', { classId, csv });
     const el = document.getElementById('importResult');
     el.classList.remove('hidden');
-    el.innerHTML = `<p style="color:var(--green)">Added ${result.added} students</p>` +
-      (result.errors?.length ? `<p style="color:var(--red)">${result.errors.join('<br>')}</p>` : '');
-    document.getElementById('csvData').value = '';
-    await loadAll();
+    try {
+      const prev = await post('/students/import', { classId, csv, preview: true });
+      const errs = prev.errors && prev.errors.length ? `<p style="color:var(--red)">${prev.errors.map(esc).join('<br>')}</p>` : '';
+      if (!prev.validCount) { el.innerHTML = `<p style="color:var(--red)">Nothing to import — check the columns and data.</p>${errs}`; return; }
+      el.innerHTML = `<p style="color:var(--muted)">Preview: ${prev.validCount} ready${prev.errorCount ? ', ' + prev.errorCount + ' will be skipped' : ''}</p>${errs}`;
+      if (!confirm(`Import ${prev.validCount} students?` + (prev.errorCount ? ` (${prev.errorCount} rows have problems and will be skipped)` : ''))) return;
+      const result = await post('/students/import', { classId, csv });
+      el.innerHTML = `<p style="color:var(--green)">Added ${result.added} students</p>` + (result.errors && result.errors.length ? `<p style="color:var(--red)">${result.errors.map(esc).join('<br>')}</p>` : '');
+      document.getElementById('csvData').value = '';
+      await loadAll();
+    } catch (e) { el.innerHTML = `<p style="color:var(--red)">${esc(e.message)}</p>`; }
   }
 
   // --- ASSIGN ---
   function populateAssign() {
     const ct = users.filter(u => u.role === 'class_teacher' && u.active !== false);
     const st = users.filter(u => u.role === 'subject_teacher' && u.active !== false);
-    const clsOpts = classes.map(c => `<option value="${c.id}">${c.label}</option>`).join('');
-    document.getElementById('assignTeacher').innerHTML = ct.map(u => `<option value="${u.id}">${u.name}</option>`).join('');
+    const clsOpts = classes.map(c => `<option value="${c.id}">${esc(c.label)}</option>`).join('');
+    document.getElementById('assignTeacher').innerHTML = ct.map(u => `<option value="${u.id}">${esc(u.name)}</option>`).join('');
     document.getElementById('assignClass').innerHTML = clsOpts;
-    document.getElementById('subjectTeacher').innerHTML = st.map(u => `<option value="${u.id}">${u.name}</option>`).join('');
+    document.getElementById('subjectTeacher').innerHTML = st.map(u => `<option value="${u.id}">${esc(u.name)}</option>`).join('');
     document.getElementById('subjectClass').innerHTML = clsOpts;
+    const allTeachers = users.filter(u => u.role !== 'admin' && u.active !== false);
+    document.getElementById('subTeacher').innerHTML = allTeachers.map(u => `<option value="${u.id}">${esc(u.name)}</option>`).join('');
+    document.getElementById('subClass').innerHTML = clsOpts;
     renderAssignments();
   }
 
@@ -597,20 +767,35 @@
     document.getElementById('assignRows').innerHTML = assignments.map(a => {
       const user = users.find(u => u.id === a.userId);
       const cls = classes.find(c => c.id === a.classId);
-      const typeBadge = a.type === 'class_teacher' ? 'badge-green' : 'badge-blue';
+      const typeBadge = a.type === 'class_teacher' ? 'badge-green' : a.type === 'substitute' ? 'badge-yellow' : 'badge-blue';
       return `<tr>
-        <td>${user?.name || '?'}</td><td>${cls?.label || '?'}</td>
-        <td><span class="badge ${typeBadge}">${a.type.replace(/_/g, ' ')}</span>${a.temporary ? ' <span class="badge badge-yellow">temp</span>' : ''}</td>
-        <td>${a.days ? a.days.join(', ') : 'All'}</td>
+        <td>${esc(user?.name) || '?'}</td><td>${esc(cls?.label) || '?'}</td>
+        <td><span class="badge ${typeBadge}">${esc(a.type).replace(/_/g, ' ')}</span>${a.temporary ? ' <span class="badge badge-yellow">temp</span>' : ''}</td>
+        <td>${a.days ? esc(a.days.join(', ')) : 'All'}</td>
         <td><button class="btn-sm btn-danger" onclick="removeAssignment('${a.id}')">Remove</button></td>
       </tr>`;
     }).join('');
   }
 
   async function assignClassTeacher() {
-    await post('/assignments', { userId: document.getElementById('assignTeacher').value, classId: document.getElementById('assignClass').value, type: 'class_teacher' });
+    const r = await post('/assignments', { userId: document.getElementById('assignTeacher').value, classId: document.getElementById('assignClass').value, type: 'class_teacher' });
     assignments = await f('/assignments'); populateAssign(); alert('Assigned');
   }
+
+  async function assignSubstitute() {
+    const classId = document.getElementById('subClass').value;
+    const start = document.getElementById('subStart').value;
+    if (!start) return alert('Choose a start date for the substitute');
+    const r = await post('/assignments', {
+      userId: document.getElementById('subTeacher').value, classId, type: 'substitute', temporary: true,
+      startDate: start, endDate: document.getElementById('subEnd').value || null,
+      reason: document.getElementById('subReason').value.trim(),
+    });
+    if (r.overlapsWith && r.overlapsWith.length) alert('Note: ' + r.overlapsWith.join(', ') + ' is also assigned here. Both will appear — review attendance if it conflicts.');
+    document.getElementById('subReason').value = '';
+    assignments = await f('/assignments'); populateAssign(); alert('Substitute assigned');
+  }
+  window.assignSubstitute = assignSubstitute;
 
   async function assignSubjectTeacher() {
     const days = document.getElementById('subjectDays').value.trim();
@@ -630,21 +815,20 @@
 
   async function removeAssignment(id) {
     if (!confirm('Remove this assignment?')) return;
-    await fetch(API + '/assignments/' + id, { method: 'DELETE', headers: { 'Bypass-Tunnel-Reminder': 'true' } });
+    await ATT.conn.request('/api/assignments/' + id, { method: 'DELETE' });
     assignments = await f('/assignments'); renderAssignments();
   }
 
   // --- ENROLL ---
   function populateEnroll() {
     document.getElementById('enrollUser').innerHTML = users.map(u =>
-      `<option value="${u.id}">${u.name} (${u.role.replace(/_/g, ' ')})</option>`
+      `<option value="${u.id}">${esc(u.name)} (${u.role.replace(/_/g, ' ')})</option>`
     ).join('');
   }
 
   async function generateQR(userId) {
     const uid = userId || document.getElementById('enrollUser').value;
-    const res = await fetch(API + '/enrollment-qr/' + uid, { method: 'POST', headers: { 'Bypass-Tunnel-Reminder': 'true' } });
-    const data = await res.json();
+    const data = await ATT.conn.request('/api/invite/' + uid, { method: 'POST' });
     const container = document.getElementById('qrResult');
     container.classList.remove('hidden');
     container.innerHTML = `
@@ -666,7 +850,7 @@
   async function loadDevices() {
     devices = await f('/devices');
     document.getElementById('deviceRows').innerHTML = devices.map(d => `<tr>
-      <td>${d.userName || '?'}</td>
+      <td>${esc(d.userName || '?')}</td>
       <td>${(d.userRole || '').replace(/_/g, ' ')}</td>
       <td style="font-size:.7rem;color:var(--muted)">${d.deviceId.slice(0, 12)}…</td>
       <td><span class="badge ${d.revoked ? 'badge-red' : 'badge-green'}">${d.revoked ? 'Revoked' : 'Active'}</span></td>
@@ -681,8 +865,8 @@
 
   // --- REPORTS ---
   function populateReportDropdowns() {
-    document.getElementById('reportClass').innerHTML = classes.map(c => `<option value="${c.id}">${c.label}</option>`).join('');
-    document.getElementById('reportDate').value = new Date().toISOString().slice(0, 10);
+    document.getElementById('reportClass').innerHTML = classes.map(c => `<option value="${c.id}">${esc(c.label)}</option>`).join('');
+    document.getElementById('reportDate').value = ATT.localDate();
     changeReport();
   }
 
@@ -699,12 +883,12 @@
     if (type === 'daily' || type === 'weekly' || type === 'missing' || type === 'absentees') {
       dateCol.classList.remove('hidden');
       if (!document.getElementById('reportDate').value) {
-        document.getElementById('reportDate').value = new Date().toISOString().slice(0, 10);
+        document.getElementById('reportDate').value = ATT.localDate();
       }
     } else if (type === 'monthly') {
       monthCol.classList.remove('hidden');
       if (!document.getElementById('reportMonth').value) {
-        document.getElementById('reportMonth').value = new Date().toISOString().slice(0, 7);
+        document.getElementById('reportMonth').value = ATT.localDate().slice(0, 7);
       }
     }
 
@@ -726,7 +910,7 @@
         const data = await f('/reports/missing/' + date);
         if (!data.missing.length) { el.innerHTML = '<p style="color:var(--green)">All classes have been marked! ✓</p>'; return; }
         el.innerHTML = `<table><thead><tr><th>Class</th><th>Marked</th><th>Total</th><th>Teacher</th></tr></thead><tbody>${
-          data.missing.map(m => `<tr><td>${m.classLabel}</td><td>${m.marked}</td><td>${m.total}</td><td>${m.teacherName}</td></tr>`).join('')
+          data.missing.map(m => `<tr><td>${esc(m.classLabel)}</td><td>${m.marked}</td><td>${m.total}</td><td>${esc(m.teacherName)}</td></tr>`).join('')
         }</tbody></table>`;
       } catch { el.innerHTML = '<p style="color:var(--red)">Error</p>'; }
       return;
@@ -739,7 +923,7 @@
         const data = await f('/reports/absentees/' + date);
         if (!data.absentees.length) { el.innerHTML = '<p style="color:var(--green)">No absentees! ✓</p>'; return; }
         el.innerHTML = `<table><thead><tr><th>Class</th><th>#</th><th>Name</th></tr></thead><tbody>${
-          data.absentees.map(a => `<tr><td>${a.classLabel}</td><td>${a.rollNo}</td><td>${a.name}</td></tr>`).join('')
+          data.absentees.map(a => `<tr><td>${esc(a.classLabel)}</td><td>${a.rollNo}</td><td>${esc(a.name)}</td></tr>`).join('')
         }</tbody></table>`;
       } catch { el.innerHTML = '<p style="color:var(--red)">Error</p>'; }
       return;
@@ -767,9 +951,9 @@
               const displayStatus = r.status === 'not_marked' ? 'Not Marked' : r.status.toUpperCase();
               return `<tr>
                 <td>${r.rollNo}</td>
-                <td>${r.name}</td>
+                <td>${esc(r.name)}</td>
                 <td><span class="badge ${badge}">${displayStatus}</span></td>
-                <td style="font-size:0.75rem;color:var(--muted)">${r.note || ''}</td>
+                <td style="font-size:0.75rem;color:var(--muted)">${esc(r.note || '')}</td>
               </tr>`;
             }).join('')
           }</tbody></table>`;
@@ -778,8 +962,8 @@
         const dateObj = new Date(date);
         const day = dateObj.getDay();
         const diffToMon = dateObj.getDate() - day + (day === 0 ? -6 : 1);
-        const mon = new Date(dateObj.setDate(diffToMon)).toISOString().slice(0, 10);
-        const sun = new Date(dateObj.setDate(diffToMon + 6)).toISOString().slice(0, 10);
+        const mon = ATT.localDate(new Date(dateObj.setDate(diffToMon)));
+        const sun = ATT.localDate(new Date(dateObj.setDate(diffToMon + 6)));
 
         const data = await f(`/reports/weekly/${classId}?start=${mon}&end=${sun}`);
         if (!data.rows.length) { el.innerHTML = '<p style="color:var(--muted)">No records</p>'; return; }
@@ -812,7 +996,7 @@
             }).join('');
             return `<tr>
               <td>${r.rollNo}</td>
-              <td style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px">${r.name}</td>
+              <td style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px">${esc(r.name)}</td>
               ${dayCells}
               <td style="text-align:center">${r.present}/${r.total}</td>
             </tr>`;
@@ -826,7 +1010,7 @@
           <thead><tr><th>#</th><th>Name</th><th>P</th><th>A</th><th>L/V</th><th>%</th></tr></thead>
           <tbody>${data.rows.map(r => `<tr>
             <td>${r.rollNo}</td>
-            <td>${r.name}</td>
+            <td>${esc(r.name)}</td>
             <td><span class="badge badge-green">${r.present}</span></td>
             <td><span class="badge badge-red">${r.absent}</span></td>
             <td><span class="badge badge-blue">${r.leave}</span></td>
@@ -840,13 +1024,13 @@
           <thead><tr><th>#</th><th>Name</th><th>P</th><th>A</th><th>%</th></tr></thead>
           <tbody>${data.summary.map(s => `<tr>
             <td>${s.rollNo}</td>
-            <td>${s.name}</td>
+            <td>${esc(s.name)}</td>
             <td><span class="badge badge-green">${s.present}</span></td>
             <td><span class="badge badge-red">${s.absent}</span></td>
             <td>${s.percentage}%</td>
           </tr>`).join('')}</tbody>
         </table>`;
-        exportLink.href = API + '/reports/export/' + classId + '/summary';
+        exportLink.onclick = () => downloadFile('/api/reports/export/' + classId + '/summary', 'attendance-summary.csv');
         exportLink.classList.remove('hidden');
       }
       lucide.createIcons();
@@ -863,20 +1047,24 @@
       `;
       document.getElementById('backupList').innerHTML = list.length
         ? `<table><thead><tr><th>File</th><th>Size</th><th>Date</th></tr></thead><tbody>${
-          list.slice(0, 10).map(b => `<tr><td style="font-size:.75rem">${b.name}</td><td>${(b.size / 1024).toFixed(1)} KB</td><td>${new Date(b.date).toLocaleString('en-IN')}</td></tr>`).join('')
+          list.slice(0, 10).map(b => `<tr><td style="font-size:.75rem">${esc(b.name)}</td><td>${(b.size / 1024).toFixed(1)} KB</td><td>${new Date(b.date).toLocaleString('en-IN')}</td></tr>`).join('')
         }</tbody></table>` : '<p style="color:var(--muted)">No backups yet</p>';
     } catch { document.getElementById('backupStatus').innerHTML = '<p style="color:var(--red)">Cannot load backup info</p>'; }
   }
 
+  window.createBackupNow = async function () {
+    try { await post('/backup/create', {}); alert('Backup created.'); loadBackupInfo(); }
+    catch (e) { alert('Backup failed: ' + e.message); }
+  };
+
   async function restoreBackup(input) {
     if (!input.files.length) return;
     if (!confirm('⚠️ This will replace ALL current data with the backup. A backup of current data will be saved first. Continue?')) return;
-    const text = await input.files[0].text();
+    let data;
+    try { data = JSON.parse(await input.files[0].text()); }
+    catch { return alert('Restore failed: that file is not a valid backup (not readable JSON).'); }
     try {
-      const data = JSON.parse(text);
-      const res = await fetch(API + '/backup/restore', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Bypass-Tunnel-Reminder': 'true' }, body: JSON.stringify(data) });
-      const result = await res.json();
-      if (result.error) throw new Error(result.error);
+      const result = await ATT.conn.request('/api/backup/restore', { method: 'POST', body: data });
       alert(`Restored! ${result.users} users, ${result.students} students, ${result.classes} classes`);
       await loadAll();
     } catch (e) { alert('Restore failed: ' + e.message); }
@@ -889,18 +1077,39 @@
       document.getElementById('setSchoolName').value = s.schoolName || '';
       document.getElementById('setAcademicYear').value = s.academicYear || '';
       document.getElementById('setLockHours').value = s.lockAfterHours || '';
+      loadHolidays();
     } catch {}
   }
 
+  async function loadHolidays() {
+    const el = document.getElementById('holidayList');
+    try {
+      const list = await f('/holidays');
+      el.innerHTML = list.length
+        ? list.sort((a, b) => a.date.localeCompare(b.date)).map(h => `<div class="stat-row"><span>${esc(h.date)} — ${esc(h.name)}</span><button class="btn-sm btn-danger" onclick="removeHoliday('${esc(h.date)}')">Remove</button></div>`).join('')
+        : '<p style="color:var(--muted);font-size:.8rem">No holidays added.</p>';
+    } catch { el.innerHTML = ''; }
+  }
+  window.addHoliday = async function () {
+    const date = document.getElementById('holDate').value;
+    if (!date) return alert('Choose a date');
+    await post('/holidays', { date, name: document.getElementById('holName').value.trim() || 'Holiday' });
+    document.getElementById('holName').value = '';
+    loadHolidays();
+  };
+  window.removeHoliday = async function (date) {
+    await ATT.conn.request('/api/holidays/' + date, { method: 'DELETE' });
+    loadHolidays();
+  };
+
   async function saveSettings() {
-    await fetch(API + '/settings', {
+    await ATT.conn.request('/api/settings', {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json', 'Bypass-Tunnel-Reminder': 'true' },
-      body: JSON.stringify({
+      body: {
         schoolName: document.getElementById('setSchoolName').value,
         academicYear: document.getElementById('setAcademicYear').value,
         lockAfterHours: parseInt(document.getElementById('setLockHours').value) || 0,
-      }),
+      },
     });
     alert('Settings saved');
     await loadAll();

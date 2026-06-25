@@ -1,6 +1,6 @@
 // ponytail: admin app-shell cache. Version in the name → every deploy ships fresh JS (RC-5).
 // Shared modules + vendored lucide precached so the panel works without a CDN (RC-6).
-const CACHE = 'admin-2.0.0';
+const CACHE = 'admin-2.1.0';
 const SHELL = [
   './', 'index.html', 'manifest.json',
   '../shared/config.js', '../shared/connection.js', '../shared/pairing.js', '../shared/vendor/lucide.min.js',
