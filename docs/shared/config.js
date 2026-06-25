@@ -3,13 +3,23 @@
 (function () {
   const ATT = (window.ATT = window.ATT || {});
 
-  ATT.VERSION = '2.3.0';
+  ATT.VERSION = '3.0.0';
 
-  // Default public endpoint for remote (off-LAN) use. This is no longer needed for REST
-  // since all remote (off-LAN) communication now goes through WebRTC signaling via PeerJS.
-  ATT.PUBLIC_SERVER = '';
+  // Pure P2P: no tunnel, no public HTTP server. Remote devices reach the office PC over a
+  // WebRTC DataChannel. The office PC registers ONE stable peer id on the free PeerJS broker
+  // (0.peerjs.com) and every device connects to it. MUST match PEER_ID in server/index.js.
+  ATT.SERVER_PEER_ID = 'att-vyasdevgna-school-9k4f2';
 
-  ATT.ICE = [{ urls: 'stun:stun.l.google.com:19302' }];
+  // Free public STUN (for normal NATs) + free TURN relay (for hard/symmetric NATs and
+  // cellular). TURN is what makes pairing work when both sides are behind routers. These are
+  // public shared credentials (not secret).
+  ATT.ICE = [
+    { urls: 'stun:stun.l.google.com:19302' },
+    { urls: 'stun:stun1.l.google.com:19302' },
+    { urls: 'turn:openrelay.metered.ca:80', username: 'openrelayproject', credential: 'openrelayproject' },
+    { urls: 'turn:openrelay.metered.ca:443', username: 'openrelayproject', credential: 'openrelayproject' },
+    { urls: 'turn:openrelay.metered.ca:443?transport=tcp', username: 'openrelayproject', credential: 'openrelayproject' },
+  ];
 
   // Stable id with a fallback for plain-HTTP origins where crypto.randomUUID is absent.
   ATT.genId = function () {

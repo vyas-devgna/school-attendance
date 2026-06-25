@@ -1,113 +1,57 @@
-// ponytail: ONE transport for both apps. WebRTC DataChannel first (the requested pipeline),
-// REST-over-tunnel fallback, with timeouts + non-JSON/tunnel-warning detection. Offline is
-// handled by callers (local-save + queue). Attaches window.ATT.conn.
+// ponytail: ONE transport. On the office PC (served locally) → same-origin REST. Everywhere
+// else → a WebRTC DataConnection to the office PC using the real PeerJS library (correct wire
+// protocol + STUN/TURN). No tunnel, no public HTTP server. If the channel isn't up, request()
+// throws a clear error and the caller keeps data in the offline queue. Attaches window.ATT.conn.
 (function () {
   const ATT = (window.ATT = window.ATT || {});
 
-  let serverUrl = null;      // base http(s) origin of the server (no trailing slash, no /api)
+  let serverUrl = null;      // same-origin base, only used when served by the PC
   let deviceToken = null;
-  let pc = null, dc = null, ws = null, dcReady = false;
-  let mode = 'rest';         // 'webrtc' | 'rest'
+  let peer = null, conn = null, ready = false, connecting = null;
   const pending = new Map(); // requestId -> { resolve, reject, timer }
 
   function setEndpoint(url, token) {
     serverUrl = (url || '').replace(/\/+$/, '');
     deviceToken = token || null;
   }
-  function getMode() { return dcReady ? 'webrtc' : mode; }
-
-  function wsUrl() { return serverUrl.replace(/^http/, 'ws') + '/signal'; }
-
-  // Bring up the WebRTC pipeline. Resolves true if the DataChannel opens, false otherwise.
-  // Failure is non-fatal — request() transparently uses REST.
-  function connectWebRTC(serverPeerId, timeoutMs) {
-    if (typeof serverPeerId === 'number') {
-      timeoutMs = serverPeerId;
-      serverPeerId = 'vyas-school-att';
-    }
-    serverPeerId = serverPeerId || 'vyas-school-att';
-    timeoutMs = timeoutMs || 8000;
-    teardown();
-    if (!('RTCPeerConnection' in window)) return Promise.resolve(false);
-    return new Promise((resolve) => {
-      let settled = false;
-      const finish = (v) => { if (!settled) { settled = true; resolve(v); } };
-      try {
-        const clientId = 'att-client-' + Math.random().toString(36).slice(2, 10);
-        const token = Math.random().toString(36).slice(2, 10);
-        const signalingUrl = 'wss://0.peerjs.com/peerjs?key=peerjs&id=' + clientId + '&token=' + token + '&version=1.4.7';
-
-        ws = new WebSocket(signalingUrl);
-        pc = new RTCPeerConnection({ iceServers: ATT.ICE });
-        dc = pc.createDataChannel('api');
-
-        dc.onopen = () => {
-          dcReady = true;
-          mode = 'webrtc';
-          // Close signaling socket once WebRTC is established to save resources.
-          try { ws && ws.close(); } catch {}
-          ws = null;
-          finish(true);
-        };
-        dc.onclose = () => { dcReady = false; };
-        dc.onmessage = (e) => {
-          let m; try { m = JSON.parse(e.data); } catch { return; }
-          const p = pending.get(m.id);
-          if (p) { pending.delete(m.id); clearTimeout(p.timer); p.resolve(m); }
-        };
-
-        pc.onicecandidate = (e) => {
-          if (e.candidate && ws && ws.readyState === 1) {
-            ws.send(JSON.stringify({
-              type: 'CANDIDATE',
-              dst: serverPeerId,
-              src: clientId,
-              token: token,
-              payload: { candidate: e.candidate.candidate, type: 'candidate', sdpMid: e.candidate.sdpMid }
-            }));
-          }
-        };
-
-        ws.onmessage = async (e) => {
-          let m; try { m = JSON.parse(e.data); } catch { return; }
-          if (m.type === 'OPEN') {
-            try {
-              const offer = await pc.createOffer();
-              await pc.setLocalDescription(offer);
-              ws.send(JSON.stringify({
-                type: 'OFFER',
-                dst: serverPeerId,
-                src: clientId,
-                token: token,
-                payload: { sdp: pc.localDescription.sdp, type: 'offer' }
-              }));
-            } catch { finish(false); }
-          } else if (m.type === 'ANSWER' && m.payload?.sdp) {
-            try {
-              const sdpData = typeof m.payload.sdp === 'string' ? m.payload.sdp : m.payload.sdp.sdp;
-              await pc.setRemoteDescription({ type: m.payload.type || 'answer', sdp: sdpData });
-            } catch {}
-          } else if (m.type === 'CANDIDATE' && m.payload?.candidate) {
-            try {
-              const candStr = typeof m.payload.candidate === 'string' ? m.payload.candidate : m.payload.candidate.candidate;
-              await pc.addIceCandidate({ candidate: candStr, sdpMid: m.payload.sdpMid || '0' });
-            } catch {}
-          }
-        };
-        ws.onerror = () => { if (!dcReady) finish(false); };
-        ws.onclose = () => { if (!dcReady) finish(false); };
-
-        setTimeout(() => finish(dcReady), timeoutMs);
-      } catch { finish(false); }
-    });
-  }
+  function getMode() { return ready ? 'webrtc' : (ATT.isLocalServed() ? 'local' : 'offline'); }
 
   function teardown() {
-    dcReady = false;
-    try { dc && dc.close(); } catch {}
-    try { pc && pc.close(); } catch {}
-    try { ws && ws.close(); } catch {}
-    dc = pc = ws = null;
+    ready = false;
+    try { conn && conn.close(); } catch {}
+    try { peer && peer.destroy(); } catch {}
+    conn = peer = null;
+  }
+
+  // Open a WebRTC DataConnection to the office PC via the free PeerJS broker. Resolves true on success.
+  function connectWebRTC(timeoutMs) {
+    if (ready && conn && conn.open) return Promise.resolve(true);
+    if (connecting) return connecting;
+    timeoutMs = timeoutMs || 20000; // TURN handshakes can be slow on first connect
+    if (typeof window.Peer !== 'function') return Promise.resolve(false);
+
+    connecting = new Promise((resolve) => {
+      let settled = false;
+      const finish = (v) => { if (!settled) { settled = true; connecting = null; resolve(v); } };
+      teardown();
+      try {
+        peer = new Peer({ debug: 0, config: { iceServers: ATT.ICE } });
+        const t = setTimeout(() => finish(false), timeoutMs);
+        peer.on('open', () => {
+          conn = peer.connect(ATT.SERVER_PEER_ID, { reliable: true });
+          conn.on('open', () => { ready = true; clearTimeout(t); finish(true); });
+          conn.on('data', (m) => {
+            const p = m && pending.get(m.id);
+            if (p) { pending.delete(m.id); clearTimeout(p.timer); p.resolve(m); }
+          });
+          conn.on('close', () => { ready = false; });
+          conn.on('error', () => { if (!ready) { clearTimeout(t); finish(false); } });
+        });
+        peer.on('error', () => { if (!ready) { clearTimeout(t); finish(false); } });
+        peer.on('disconnected', () => { ready = false; });
+      } catch { finish(false); }
+    });
+    return connecting;
   }
 
   function normalize(status, data) {
@@ -119,9 +63,9 @@
   function viaWebRTC(method, path, body) {
     return new Promise((resolve, reject) => {
       const id = ATT.genId();
-      const timer = setTimeout(() => { if (pending.has(id)) { pending.delete(id); reject(new Error('timeout')); } }, 12000);
+      const timer = setTimeout(() => { if (pending.has(id)) { pending.delete(id); reject(new Error('The school server did not answer. Try again.')); } }, 15000);
       pending.set(id, { resolve, reject, timer });
-      try { dc.send(JSON.stringify({ id, method, path, body, token: deviceToken })); }
+      try { conn.send({ id, method, path, body, token: deviceToken }); }
       catch (e) { pending.delete(id); clearTimeout(timer); reject(e); }
     }).then((reply) => normalize(reply.status, reply.body));
   }
@@ -133,34 +77,37 @@
     try {
       res = await fetch(serverUrl + path, {
         method, signal: ctrl.signal,
-        headers: Object.assign(
-          { 'Content-Type': 'application/json', 'Bypass-Tunnel-Reminder': 'true' },
-          deviceToken ? { 'x-device-token': deviceToken } : {}
-        ),
+        headers: Object.assign({ 'Content-Type': 'application/json' }, deviceToken ? { 'x-device-token': deviceToken } : {}),
         body: body != null ? JSON.stringify(body) : undefined,
       });
     } catch (e) {
       clearTimeout(timer);
-      throw new Error(e.name === 'AbortError' ? 'The server did not respond. Check your internet and try again.' : 'Cannot reach the server. It may be off or offline.');
+      throw new Error(e.name === 'AbortError' ? 'The server did not respond. Try again.' : 'Cannot reach the school server.');
     }
     clearTimeout(timer);
-    const text = await res.text();
-    let data;
-    try { data = JSON.parse(text); }
-    catch { throw new Error('Remote access is not ready yet (got a warning page). Ask the admin to open the school app on the office PC, then try again.'); }
+    const data = await res.json().catch(() => ({}));
     return normalize(res.status, data);
   }
 
-  // Main entry. path includes the /api prefix, e.g. request('/api/me').
+  // path includes /api, e.g. request('/api/me'). On the PC → REST. Remote → WebRTC only.
   async function request(path, opts) {
     opts = opts || {};
     const method = opts.method || 'GET';
     const body = opts.body;
-    if (dcReady) {
-      try { return await viaWebRTC(method, path, body); }
-      catch (e) { if (e.revoked) throw e; /* fall through to REST */ }
+    if (ATT.isLocalServed()) return viaRest(method, path, body);
+
+    if (!ready) {
+      await connectWebRTC().catch(() => {});
+      if (!ready) { const e = new Error('Not connected to the school server. Make sure the office computer is on, then try again.'); e.offline = true; throw e; }
     }
-    return viaRest(method, path, body);
+    try { return await viaWebRTC(method, path, body); }
+    catch (e) {
+      if (e.revoked) throw e;
+      ready = false;                       // one reconnect + retry before giving up
+      await connectWebRTC().catch(() => {});
+      if (!ready) { e.offline = true; throw e; }
+      return viaWebRTC(method, path, body);
+    }
   }
 
   ATT.conn = { setEndpoint, connectWebRTC, request, teardown, getMode };

@@ -20,12 +20,15 @@
   // Enroll this device. expectApp = 'admin' | 'teacher' (the app doing the pairing).
   // Returns the stored pairing object, or throws an Error with a friendly message.
   async function enroll({ server, token, code, expectApp }) {
-    const base = (server || ATT.PUBLIC_SERVER).replace(/\/+$/, '');
+    const base = ATT.isLocalServed() ? location.origin : '';
     const deviceId = (get() && get().deviceId) || ATT.genId();
     ATT.conn.setEndpoint(base, null);
 
-    // Try the WebRTC pipeline first (the requested transport); silently fall back to REST.
-    await ATT.conn.connectWebRTC('vyas-school-att-' + (token || code)).catch(() => {});
+    // Remote devices reach the office PC over WebRTC (P2P via the free broker).
+    if (!ATT.isLocalServed()) {
+      const up = await ATT.conn.connectWebRTC().catch(() => false);
+      if (!up) throw new Error('Could not reach the school server. Make sure the office computer is on and connected to the internet, then try again.');
+    }
 
     const body = { deviceId, appType: expectApp };
     if (token) body.token = token; else body.code = code;
@@ -51,33 +54,20 @@
   async function reconnect() {
     const p = get();
     if (!p) return null;
-    const base = ATT.isLocalServed() ? location.origin : p.server;
-    
-    // Set endpoint with null token first for verification
+    const base = ATT.isLocalServed() ? location.origin : '';
+
+    // Verify identity with no token first, then attach the token only to the real server.
     ATT.conn.setEndpoint(base, null);
+    if (!ATT.isLocalServed()) await ATT.conn.connectWebRTC().catch(() => {});
 
-    if (!ATT.isLocalServed() && p.fingerprint) {
-      // Remote devices must use WebRTC to reach the server.
-      // Connect WebRTC using the unique device token hash for this device.
-      const tokenHash = await ATT.sha256(p.deviceToken);
-      await ATT.conn.connectWebRTC('vyas-school-att-' + tokenHash).catch(() => {});
-    }
-
-    // Now request server-info (either via WebRTC if connected, or LAN REST if on LAN)
     let info;
-    try {
-      info = await ATT.conn.request('/api/server-info');
-    } catch (e) {
-      // If we are remote and WebRTC failed, we cannot connect right now.
-      return p;
-    }
+    try { info = await ATT.conn.request('/api/server-info'); }
+    catch (e) { return p; } // server unreachable right now — stay offline, keep queue
 
     if (p.fingerprint && info.fingerprint !== p.fingerprint) {
       throw new Error('This is not the paired school server. Ask the admin to pair this device again.');
     }
-
-    // Server verified! Now set the real device token for authenticated requests.
-    ATT.conn.setEndpoint(base, p.deviceToken);
+    ATT.conn.setEndpoint(base, p.deviceToken); // authenticate subsequent calls
     return p;
   }
 

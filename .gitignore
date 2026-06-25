@@ -15,6 +15,7 @@ server/backups/
 
 # Session exports and generated screenshots — never deploy
 codex-session-export.md
+Finalizing School Attendance System.md
 admin-desktop-*.png
 admin-mobile-*.png
 teacher-pairing-mobile-*.png

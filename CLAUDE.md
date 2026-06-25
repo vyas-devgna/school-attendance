@@ -9,13 +9,14 @@ hosted on GitHub Pages, and talk to that PC. No cloud DB, no Firebase, no SaaS.
 
 ## Architecture
 ```
-server/index.js   Express API + JSON-file DB + invites/auth + stable tunnel + signalling mount
-server/signal.js  WebRTC signalling (ws) + node-datachannel peer; DataChannel ⇄ loopback HTTP
+server/index.js   Express API + JSON-file DB + invites/auth + signalling mount (NO tunnel)
+server/signal.js  Real PeerJS library (Node) on node-datachannel polyfill; ONE stable peer id
+                  on the free 0.peerjs.com broker; DataConnection ⇄ loopback HTTP to routes
 shared/           ONE client core, used by BOTH apps (no drift):
-  config.js         version, PUBLIC_SERVER (stable tunnel), STUN, genId, SW auto-reload
-  connection.js     transport: WebRTC DataChannel → REST-over-tunnel → error; timeouts, non-JSON detect
+  config.js         version, SERVER_PEER_ID (must match server PEER_ID), STUN+free TURN, genId
+  connection.js     transport: same-origin REST on the PC, else WebRTC P2P via PeerJS; timeouts
   pairing.js        enroll()/reconnect()/parseQR() — QR and 6-digit use the SAME path
-  vendor/lucide.min.js  icons, served locally (no CDN)
+  vendor/lucide.min.js, vendor/peerjs.min.js   served locally (no CDN)
 admin/index.html  admin panel (inline JS)
 app/              teacher PWA (index.html, app.js, style.css, sw.js)
 docs/             GENERATED copy of admin/ app/ shared/ for GitHub Pages — run the sync, don't hand-edit
@@ -24,12 +25,14 @@ docs/             GENERATED copy of admin/ app/ shared/ for GitHub Pages — run
 ## Run
 ```
 cd server
-npm install        # express, cors, qrcode, localtunnel, ws, node-datachannel
+npm install        # express, cors, qrcode, ws, node-datachannel, peerjs
 npm run seed       # demo db.json (optional; first-run wizard can also set up)
 npm start          # http://localhost:3000  (admin: /admin, app: /app)
 ```
-Env knobs: `PORT`, `TUNNEL_SUBDOMAIN` (default `vyas-school-att`), `NO_TUNNEL=1` (offline/dev),
-`DB_PATH`/`BACKUP_DIR` (tests), `TURN_URL`/`TURN_USER`/`TURN_PASS` (optional TURN).
+On start the PC registers ONE stable peer id (`PEER_ID`, default `att-vyasdevgna-school-9k4f2`)
+on the free PeerJS broker so remote devices can reach it over WebRTC. No tunnel, no port-forward.
+Env knobs: `PORT`, `PEER_ID` (must match `SERVER_PEER_ID` in shared/config.js), `NO_SIGNAL=1`
+(skip broker, offline/dev), `DB_PATH`/`BACKUP_DIR` (tests), `TURN_URL`/`TURN_USER`/`TURN_PASS` (extra TURN).
 
 ## Test
 ```
@@ -54,10 +57,11 @@ or installed apps keep old code. Never copy `server/db.json` or `server/backups/
 ## Pairing architecture (the core)
 - Admin makes an invite per user → server stores it (15-min expiry, one-time, role+appType).
 - QR encodes `{server, token, code, role, appType}`; the 6-digit code resolves to the SAME invite.
-- The app (admin or teacher) opens the WebRTC pipeline to the server (signalling over the stable
-  tunnel) and sends `enroll`; falls back to REST-over-tunnel if WebRTC can't form (NAT/no TURN).
-- Server issues a per-device `deviceToken` (the shared "connection key"). Both transports send it
-  as `x-device-token`; the gate enforces token → device(active,!revoked) → user(active) → role.
+- A remote app opens a WebRTC DataConnection to the PC's stable peer id (via the free PeerJS
+  broker + STUN/TURN) and sends `enroll`. If it can't connect, data stays in the offline queue —
+  there is no public HTTP fallback (no tunnel). On the PC itself, same-origin REST is used.
+- Server issues a per-device `deviceToken`; the client sends it as `token` in each framed request
+  (and as `x-device-token` on the PC). The gate enforces token → device(active,!revoked) → user → role.
 - Only a browser on the PC itself (localhost, no XFF, no bridge marker) is trusted as local admin.
 
 ## Lessons already paid for
@@ -79,11 +83,14 @@ targets, one obvious primary action, sync/server status always visible, clear em
 states, confirm before destructive actions. Don't add decorative motion or heavy theming.
 
 ## Honest limitations
-- Free WebRTC without a TURN server won't cross every NAT; those peers fall back to REST-over-tunnel.
-- localtunnel's fixed subdomain is best-effort; on conflict the server uses a random one and shows the
-  real URL in Diagnostics. Cloudflare Tunnel is the documented reliability upgrade.
-- GitHub Pages (HTTPS) can't reach a plain `http://LAN` server — remote = tunnel/WebRTC only; on-site
-  users open the local server directly.
+- Remote access needs (a) the office PC on with internet, (b) the free PeerJS broker (0.peerjs.com)
+  reachable, and (c) WebRTC able to connect (STUN, or free TURN for hard NATs). The bundled free
+  TURN (OpenRelay) covers most networks; if it's ever down, very strict NATs may not connect. When
+  any of these fail, the app keeps working offline and queues attendance — it never loses data.
+- The stable peer id is public on the shared broker. If a third party squats it, change `PEER_ID`
+  (server) and `SERVER_PEER_ID` (config.js) to a new value and redeploy.
+- GitHub Pages (HTTPS) can't reach a plain `http://LAN` server, so remote = WebRTC only; on the
+  office PC itself, the apps use same-origin REST directly.
 
 ## Do NOT add
 Cloud DB / Firebase / Supabase / SaaS; payments; SMS/WhatsApp; biometrics/face; a JS framework

@@ -1,299 +1,102 @@
-// ponytail: public signalling for first pairing and reconnect; API data stays inside WebRTC.
-const { WebSocket } = require('ws');
-const rtc = require('node-datachannel');
+// ponytail: pure-P2P signalling using the REAL PeerJS library on both ends (hand-rolling the
+// PeerJS wire protocol was the bug — the broker silently dropped malformed messages). The office
+// PC registers ONE stable peer id on the free PeerJS broker (0.peerjs.com). Browsers connect to
+// it over WebRTC; STUN/TURN handle NAT. Once a DataConnection opens, framed API requests are
+// bridged to the local Express routes (loopback HTTP). No tunnel, no public HTTP server.
+const ndc = require('node-datachannel');
 
-// Keep track of active WebRTC peer connections
-const activePeers = new Map(); // clientSrc -> { pc, ws }
+// PeerJS needs browser globals; node-datachannel provides a WebRTC polyfill for Node.
+const wrtc = require('node-datachannel/polyfill');
+global.RTCPeerConnection = global.RTCPeerConnection || wrtc.RTCPeerConnection;
+global.RTCSessionDescription = global.RTCSessionDescription || wrtc.RTCSessionDescription;
+global.RTCIceCandidate = global.RTCIceCandidate || wrtc.RTCIceCandidate;
+global.WebSocket = global.WebSocket || require('ws');
+const { Peer } = require('peerjs');
 
-function attachSignal(httpServer, { dispatch, iceServers, fingerprint, getActiveTokenHashes }) {
-  if (!fingerprint) {
-    // RUN THE OLD LOCAL WEBSOCKET SERVER FOR OFFLINE TESTS / FALLBACK!
-    const { WebSocketServer } = require('ws');
-    const peers = new Set();
-    const wss = new WebSocketServer({ server: httpServer, path: '/signal', maxPayload: 256 * 1024 });
+function attachSignal(httpServer, { dispatch, iceServers, peerId }) {
+  if (!peerId) return attachLocalSignal(httpServer, { dispatch, iceServers }); // offline/test mode
 
-    wss.on('connection', (ws) => {
-      if (peers.size >= 50) return ws.close(1013, 'Busy');
-      let pc = null;
-      const timer = setTimeout(() => ws.close(1000, 'Timed out'), 30000);
-      const closePeer = () => {
-        clearTimeout(timer);
-        if (!pc) return;
-        peers.delete(pc);
-        try { pc.close(); } catch {}
-        pc = null;
-      };
+  let peer = null, open = false, closed = false, retry = null;
+  const conns = new Set();
 
-      ws.on('message', (raw) => {
-        let msg;
-        try { msg = JSON.parse(raw.toString()); } catch { return; }
+  function start() {
+    if (closed) return;
+    peer = new Peer(peerId, { debug: 0, config: { iceServers } });
+
+    peer.on('open', (id) => { open = true; console.log(`[signal] online on the free broker as "${id}"`); });
+
+    peer.on('connection', (conn) => {
+      conns.add(conn);
+      conn.on('data', async (req) => {
+        if (!req || !req.id || !String(req.path || '').startsWith('/api/')) return;
         try {
-          if (msg.type === 'offer' && !pc && msg.sdp?.sdp) {
-            pc = new rtc.PeerConnection('attendance-server', {
-              iceServers: (iceServers || []).map(toIceServer),
-            });
-            peers.add(pc);
-            pc.onLocalDescription((sdp, type) => safeSend(ws, { type: 'answer', sdp: { sdp, type } }));
-            pc.onLocalCandidate((candidate, mid) => safeSend(ws, { type: 'ice', candidate: { candidate, sdpMid: mid } }));
-            pc.onDataChannel(channel => {
-              clearTimeout(timer);
-              wireChannel(channel, dispatch);
-            });
-            pc.setRemoteDescription(msg.sdp.sdp, msg.sdp.type || 'offer');
-          } else if (msg.type === 'ice' && pc && msg.candidate?.candidate) {
-            pc.addRemoteCandidate(msg.candidate.candidate, msg.candidate.sdpMid || '0');
-          }
-        } catch (e) {
-          safeSend(ws, { type: 'error', error: String(e?.message || e) });
+          const { status, body } = await dispatch(req.method || 'GET', req.path, req.body, { token: req.token });
+          try { conn.send({ id: req.id, status, body }); } catch {}
+        } catch {
+          try { conn.send({ id: req.id, status: 500, body: { error: 'Request failed' } }); } catch {}
         }
       });
-
-      ws.on('close', closePeer);
-      ws.on('error', closePeer);
+      conn.on('close', () => conns.delete(conn));
+      conn.on('error', () => conns.delete(conn));
     });
 
-    wss.on('close', () => {
-      for (const pc of peers) try { pc.close(); } catch {}
-      peers.clear();
+    // Keep the rendezvous alive forever.
+    peer.on('disconnected', () => { open = false; if (!closed) { try { peer.reconnect(); } catch { scheduleRestart(); } } });
+    peer.on('error', (e) => {
+      open = false;
+      console.error('[signal] broker error:', e.type);
+      if (['unavailable-id', 'network', 'server-error', 'socket-error', 'socket-closed'].includes(e.type)) scheduleRestart();
     });
-    wss.isConnected = () => true;
-    wss.registerDevice = () => {};
-    wss.unregisterDevice = () => {};
-    return wss;
   }
 
-  // CONNECT TO THE PUBLIC PEERJS SIGNALING SERVER!
-  console.log(`[Signaling] Initializing PeerJS WebRTC bridge with fingerprint: ${fingerprint}`);
-  
-  const deviceConnections = new Map(); // tokenHash -> connection object
-  const inviteConnections = new Map(); // token -> cleanup fn
-
-  // Main connection just to show we are online (globally unique)
-  const mainConn = connectSignaling('vyas-school-att-' + fingerprint, { dispatch, iceServers });
-
-  const registerDevice = (tokenHash) => {
-    if (!tokenHash || deviceConnections.has(tokenHash)) return;
-    console.log(`[Signaling] Registering constant pipeline for device: ${tokenHash.slice(0, 12)}...`);
-    const conn = connectSignaling('vyas-school-att-' + tokenHash, { dispatch, iceServers });
-    deviceConnections.set(tokenHash, conn);
-  };
-
-  const unregisterDevice = (tokenHash) => {
-    const conn = deviceConnections.get(tokenHash);
-    if (conn) {
-      console.log(`[Signaling] Unregistering pipeline for device: ${tokenHash.slice(0, 12)}...`);
-      conn.close();
-      deviceConnections.delete(tokenHash);
-    }
-  };
-
-  const registerInvite = (token, code) => {
-    if (!token || !code || inviteConnections.has(token)) return;
-    console.log(`[Signaling] Registering invite pipelines for code ${code}`);
-    const connT = connectSignaling(`vyas-school-att-${token}`, { dispatch, iceServers });
-    const connC = connectSignaling(`vyas-school-att-${code}`, { dispatch, iceServers });
-    
-    const cleanup = () => {
-      try { connT.close(); } catch {}
-      try { connC.close(); } catch {}
-      inviteConnections.delete(token);
-    };
-
-    setTimeout(cleanup, 15 * 60 * 1000);
-    inviteConnections.set(token, cleanup);
-  };
-
-  const unregisterInvite = (token) => {
-    const cleanup = inviteConnections.get(token);
-    if (cleanup) cleanup();
-  };
-
-  // Register all currently active devices on startup
-  const activeHashes = (typeof getActiveTokenHashes === 'function' ? getActiveTokenHashes() : []) || [];
-  for (const hash of activeHashes) {
-    registerDevice(hash);
+  function scheduleRestart() {
+    if (closed) return;
+    clearTimeout(retry);
+    retry = setTimeout(() => { try { peer && peer.destroy(); } catch {} start(); }, 5000);
   }
 
-  // Register all currently active invites on startup
-  const activeInvites = (typeof getActiveInvites === 'function' ? getActiveInvites() : []) || [];
-  for (const inv of activeInvites) {
-    registerInvite(inv.token, inv.code);
-  }
+  start();
 
   return {
-    registerDevice,
-    unregisterDevice,
-    registerInvite,
-    unregisterInvite,
-    isConnected: () => mainConn.isOpen(),
-    close: (callback) => {
-      mainConn.close();
-      for (const conn of deviceConnections.values()) conn.close();
-      for (const cleanup of inviteConnections.values()) cleanup();
-      deviceConnections.clear();
-      inviteConnections.clear();
-      for (const peer of activePeers.values()) {
-        try { peer.pc.close(); } catch {}
-      }
-      activePeers.clear();
-      if (callback) callback();
-    }
+    isConnected: () => open,
+    close: (cb) => { closed = true; clearTimeout(retry); try { peer && peer.destroy(); } catch {} if (cb) cb(); },
   };
 }
 
-function connectSignaling(peerId, { dispatch, iceServers }) {
-  const token = Math.random().toString(36).slice(2, 10);
-  const url = `wss://0.peerjs.com/peerjs?key=peerjs&id=${peerId}&token=${token}&version=1.4.7`;
-  let ws = null;
-  let heartbeatTimer = null;
-  let reconnectTimer = null;
-  let isClosed = false;
-
-  const connect = () => {
-    if (isClosed) return;
-    console.log(`[Signaling] Connecting to PeerJS server for ID: ${peerId}`);
-    ws = new WebSocket(url);
-    ws.token = token;
-
-    ws.on('open', () => {
-      console.log(`[Signaling] WebSocket open for ID: ${peerId}`);
-      // Send heartbeats every 15 seconds to keep the connection alive
-      heartbeatTimer = setInterval(() => {
-        safeSend(ws, { type: 'HEARTBEAT' });
-      }, 15000);
-    });
-
+// Local WebSocket signalling (same machine) — offline tests only. Browsers use PeerJS, not this.
+function attachLocalSignal(httpServer, { dispatch, iceServers }) {
+  const { WebSocketServer } = require('ws');
+  const ice = (iceServers || []).map(toIceServer);
+  const wss = new WebSocketServer({ server: httpServer, path: '/signal', maxPayload: 256 * 1024 });
+  wss.on('connection', (ws) => {
+    let pc = null;
+    const close = () => { if (pc) { try { pc.close(); } catch {} pc = null; } };
     ws.on('message', (raw) => {
-      let msg;
-      try { msg = JSON.parse(raw.toString()); } catch { return; }
-
-      if (msg.type === 'OPEN') {
-        console.log(`[Signaling] Successfully registered on PeerJS server with ID: ${peerId}`);
-      } else if (msg.type === 'OFFER' && msg.payload?.sdp) {
-        const clientSrc = msg.src;
-        console.log(`[Signaling] Received OFFER from client: ${clientSrc}`);
-
-        // Clean up any existing stale connection for this client
-        const existing = activePeers.get(clientSrc);
-        if (existing) {
-          try { existing.pc.close(); } catch {}
-          activePeers.delete(clientSrc);
+      let m; try { m = JSON.parse(raw.toString()); } catch { return; }
+      try {
+        if (m.type === 'offer' && !pc && m.sdp && m.sdp.sdp) {
+          pc = new ndc.PeerConnection('att-server', { iceServers: ice });
+          pc.onLocalDescription((sdp, type) => safeSend(ws, { type: 'answer', sdp: { sdp, type } }));
+          pc.onLocalCandidate((candidate, mid) => safeSend(ws, { type: 'ice', candidate: { candidate, sdpMid: mid } }));
+          pc.onDataChannel((channel) => wireChannel(channel, dispatch));
+          pc.setRemoteDescription(m.sdp.sdp, m.sdp.type || 'offer');
+        } else if (m.type === 'ice' && pc && m.candidate && m.candidate.candidate) {
+          pc.addRemoteCandidate(m.candidate.candidate, m.candidate.sdpMid || '0');
         }
-
-        try {
-          const pc = new rtc.PeerConnection('attendance-server', {
-            iceServers: (iceServers || []).map(toIceServer),
-          });
-          activePeers.set(clientSrc, { pc, ws });
-
-          pc.onStateChange(state => {
-            console.log(`[WebRTC] Connection to ${clientSrc} state: ${state}`);
-            if (state === 'disconnected' || state === 'failed' || state === 'closed') {
-              if (activePeers.get(clientSrc)?.pc === pc) {
-                activePeers.delete(clientSrc);
-              }
-              try { pc.close(); } catch {}
-            }
-          });
-
-          pc.onLocalDescription((sdp, type) => {
-            console.log(`[Signaling] Sending ANSWER to client: ${clientSrc}`);
-            safeSend(ws, {
-              type: 'ANSWER',
-              dst: clientSrc,
-              src: peerId,
-              payload: { sdp, type },
-              token: token
-            });
-          });
-
-          pc.onLocalCandidate((candidate, mid) => {
-            safeSend(ws, {
-              type: 'CANDIDATE',
-              dst: clientSrc,
-              src: peerId,
-              payload: { candidate, type: 'candidate', sdpMid: mid },
-              token: token
-            });
-          });
-
-          pc.onDataChannel(channel => {
-            console.log(`[WebRTC] DataChannel opened by client: ${clientSrc}`);
-            wireChannel(channel, dispatch);
-          });
-
-          const sdpStr = typeof msg.payload.sdp === 'object' ? msg.payload.sdp.sdp : msg.payload.sdp;
-          pc.setRemoteDescription(sdpStr, msg.payload.type || 'offer');
-        } catch (err) {
-          console.error(`[WebRTC] Error setting up PeerConnection:`, err.message);
-          safeSend(ws, {
-            type: 'ERROR',
-            dst: clientSrc,
-            src: peerId,
-            payload: { msg: err.message },
-            token: token
-          });
-        }
-      } else if (msg.type === 'CANDIDATE' && msg.payload?.candidate) {
-        const clientSrc = msg.src;
-        const peer = activePeers.get(clientSrc);
-        if (peer) {
-          try {
-            const candStr = typeof msg.payload.candidate === 'object' ? msg.payload.candidate.candidate : msg.payload.candidate;
-            peer.pc.addRemoteCandidate(candStr, msg.payload.sdpMid || '0');
-          } catch (err) {
-            console.error(`[WebRTC] Error adding remote candidate:`, err.message);
-          }
-        }
-      }
+      } catch {}
     });
-
-    const cleanup = () => {
-      clearInterval(heartbeatTimer);
-      ws = null;
-      if (!isClosed) {
-        // Try to reconnect in 5 seconds
-        clearTimeout(reconnectTimer);
-        reconnectTimer = setTimeout(connect, 5000);
-      }
-    };
-
-    ws.on('close', (code, reason) => {
-      console.log(`[Signaling] WebSocket closed for ID ${peerId} (code: ${code}, reason: ${reason}). Reconnecting...`);
-      cleanup();
-    });
-
-    ws.on('error', (err) => {
-      console.error(`[Signaling] WebSocket error for ID ${peerId}:`, err.message);
-      cleanup();
-    });
-  };
-
-  connect();
-
-  return {
-    isOpen: () => ws && ws.readyState === 1,
-    close: () => {
-      isClosed = true;
-      clearInterval(heartbeatTimer);
-      clearTimeout(reconnectTimer);
-      try { ws && ws.close(); } catch {}
-    }
-  };
+    ws.on('close', close);
+    ws.on('error', close);
+  });
+  return { isConnected: () => true, close: (cb) => { try { wss.close(); } catch {} if (cb) cb(); } };
 }
 
-function toIceServer(server) {
-  const url = Array.isArray(server.urls) ? server.urls[0] : server.urls;
-  if (!server.username) return url;
-  return String(url).replace(/^(turns?):/, `$1:${server.username}:${server.credential || ''}@`);
-}
-
+// node-datachannel raw DataChannel (local test path only).
 function wireChannel(channel, dispatch) {
-  const reply = obj => { try { channel.sendMessage(JSON.stringify(obj)); } catch {} };
-  channel.onMessage(async data => {
-    let req;
-    try { req = JSON.parse(typeof data === 'string' ? data : data.toString()); } catch { return; }
-    if (!req?.id || !String(req.path || '').startsWith('/api/')) return;
+  const reply = (obj) => { try { channel.sendMessage(JSON.stringify(obj)); } catch {} };
+  channel.onMessage(async (data) => {
+    let req; try { req = JSON.parse(typeof data === 'string' ? data : data.toString()); } catch { return; }
+    if (!req || !req.id || !String(req.path || '').startsWith('/api/')) return;
     try {
       const { status, body } = await dispatch(req.method || 'GET', req.path, req.body, { token: req.token });
       reply({ id: req.id, status, body });
@@ -303,12 +106,12 @@ function wireChannel(channel, dispatch) {
   });
 }
 
-function safeSend(ws, obj) {
-  try { if (ws && ws.readyState === 1) ws.send(JSON.stringify(obj)); } catch {}
+function toIceServer(s) {
+  const url = Array.isArray(s.urls) ? s.urls[0] : s.urls;
+  if (!s.username) return url;
+  return String(url).replace(/^(turns?):/, `$1:${s.username}:${s.credential || ''}@`);
 }
-
-function cleanupRtc() {
-  try { rtc.cleanup(); } catch {}
-}
+function safeSend(ws, obj) { try { if (ws && ws.readyState === 1) ws.send(JSON.stringify(obj)); } catch {} }
+function cleanupRtc() { try { ndc.cleanup(); } catch {} }
 
 module.exports = { attachSignal, cleanupRtc };
