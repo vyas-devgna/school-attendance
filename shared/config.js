@@ -8,7 +8,7 @@
   // Default public endpoint for remote (off-LAN) use. This is the STABLE localtunnel
   // subdomain the server requests on startup, so saved pairings survive restarts.
   // If you switch tunnels, change this one line (and re-deploy /docs).
-  ATT.PUBLIC_SERVER = 'https://vyas-school-att.loca.lt';
+  ATT.PUBLIC_SERVER = 'https://vyas-devgna-att.loca.lt';
 
   ATT.ICE = [{ urls: 'stun:stun.l.google.com:19302' }];
 

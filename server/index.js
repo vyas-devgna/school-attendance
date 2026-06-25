@@ -17,7 +17,7 @@ const APP_VERSION = '2.1.0';
 const DB_PATH = process.env.DB_PATH || path.join(__dirname, 'db.json'); // override for tests
 const BACKUP_DIR = process.env.BACKUP_DIR || path.join(__dirname, 'backups');
 const INVITE_TTL_MS = 15 * 60 * 1000; // ponytail: codes/QRs expire in 15 min (edges 5,6,101)
-const TUNNEL_SUBDOMAIN = process.env.TUNNEL_SUBDOMAIN || 'vyas-school-att'; // stable (edge 3/30)
+const TUNNEL_SUBDOMAIN = process.env.TUNNEL_SUBDOMAIN || 'vyas-devgna-att'; // stable (edge 3/30)
 const ICE_SERVERS = [{ urls: 'stun:stun.l.google.com:19302' }];
 if (process.env.TURN_URL) {
   ICE_SERVERS.push({ urls: process.env.TURN_URL, username: process.env.TURN_USER, credential: process.env.TURN_PASS });
