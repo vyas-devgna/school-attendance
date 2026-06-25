@@ -25,7 +25,7 @@
     ATT.conn.setEndpoint(base, null);
 
     // Try the WebRTC pipeline first (the requested transport); silently fall back to REST.
-    await ATT.conn.connectWebRTC('vyas-school-att').catch(() => {});
+    await ATT.conn.connectWebRTC('vyas-school-att-' + (token || code)).catch(() => {});
 
     const body = { deviceId, appType: expectApp };
     if (token) body.token = token; else body.code = code;

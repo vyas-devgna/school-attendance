@@ -66,7 +66,10 @@ function attachSignal(httpServer, { dispatch, iceServers, fingerprint, getActive
   console.log(`[Signaling] Initializing PeerJS WebRTC bridge with fingerprint: ${fingerprint}`);
   
   const deviceConnections = new Map(); // tokenHash -> connection object
-  const pairingConn = connectSignaling('vyas-school-att', { dispatch, iceServers });
+  const inviteConnections = new Map(); // token -> cleanup fn
+
+  // Main connection just to show we are online (globally unique)
+  const mainConn = connectSignaling('vyas-school-att-' + fingerprint, { dispatch, iceServers });
 
   const registerDevice = (tokenHash) => {
     if (!tokenHash || deviceConnections.has(tokenHash)) return;
@@ -84,28 +87,51 @@ function attachSignal(httpServer, { dispatch, iceServers, fingerprint, getActive
     }
   };
 
+  const registerInvite = (token, code) => {
+    if (!token || !code || inviteConnections.has(token)) return;
+    console.log(`[Signaling] Registering invite pipelines for code ${code}`);
+    const connT = connectSignaling(`vyas-school-att-${token}`, { dispatch, iceServers });
+    const connC = connectSignaling(`vyas-school-att-${code}`, { dispatch, iceServers });
+    
+    const cleanup = () => {
+      try { connT.close(); } catch {}
+      try { connC.close(); } catch {}
+      inviteConnections.delete(token);
+    };
+
+    setTimeout(cleanup, 15 * 60 * 1000);
+    inviteConnections.set(token, cleanup);
+  };
+
+  const unregisterInvite = (token) => {
+    const cleanup = inviteConnections.get(token);
+    if (cleanup) cleanup();
+  };
+
   // Register all currently active devices on startup
   const activeHashes = (typeof getActiveTokenHashes === 'function' ? getActiveTokenHashes() : []) || [];
   for (const hash of activeHashes) {
     registerDevice(hash);
   }
 
+  // Register all currently active invites on startup
+  const activeInvites = (typeof getActiveInvites === 'function' ? getActiveInvites() : []) || [];
+  for (const inv of activeInvites) {
+    registerInvite(inv.token, inv.code);
+  }
+
   return {
     registerDevice,
     unregisterDevice,
-    isConnected: () => {
-      if (!pairingConn.isOpen()) return false;
-      for (const conn of deviceConnections.values()) {
-        if (!conn.isOpen()) return false;
-      }
-      return true;
-    },
+    registerInvite,
+    unregisterInvite,
+    isConnected: () => mainConn.isOpen(),
     close: (callback) => {
-      pairingConn.close();
-      for (const conn of deviceConnections.values()) {
-        conn.close();
-      }
+      mainConn.close();
+      for (const conn of deviceConnections.values()) conn.close();
+      for (const cleanup of inviteConnections.values()) cleanup();
       deviceConnections.clear();
+      inviteConnections.clear();
       for (const peer of activePeers.values()) {
         try { peer.pc.close(); } catch {}
       }

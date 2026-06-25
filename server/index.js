@@ -544,6 +544,11 @@ async function handleInvite(req, res) {
   const invite = makeInvite(user);
   const serverUrl = getServerUrl(req);
   const qr = await inviteQR(invite, serverUrl);
+  
+  if (signalling && typeof signalling.registerInvite === 'function') {
+    signalling.registerInvite(invite.token, invite.code);
+  }
+
   addLog('invite_create', user.id, `${user.name} (${invite.appType})`);
   res.json({
     qr, code: invite.code, token: invite.token,
@@ -608,6 +613,10 @@ app.post('/api/enroll', (req, res) => {
   }
 
   invite.used = true;
+  if (signalling && typeof signalling.unregisterInvite === 'function') {
+    signalling.unregisterInvite(invite.token);
+  }
+  
   const deviceToken = crypto.randomBytes(24).toString('hex'); // the shared "connection key"
   let device = db.devices.find(d => d.deviceId === deviceId && d.userId === invite.userId);
   if (device) {
@@ -1169,7 +1178,8 @@ server.listen(PORT, '0.0.0.0', () => {
       dispatch, 
       iceServers: ICE_SERVERS, 
       fingerprint: db.settings.fingerprint,
-      getActiveTokenHashes: () => db.devices.filter(d => !d.revoked).map(d => d.tokenHash)
+      getActiveTokenHashes: () => db.devices.filter(d => !d.revoked).map(d => d.tokenHash),
+      getActiveInvites: () => db.enrollmentTokens.filter(t => !t.used && Date.now() < new Date(t.expiresAt || 0).getTime())
     });
   }
 });
