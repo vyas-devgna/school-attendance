@@ -3,7 +3,7 @@
 (function () {
   const ATT = (window.ATT = window.ATT || {});
 
-  ATT.VERSION = '2.1.0';
+  ATT.VERSION = '2.2.0';
 
   // Default public endpoint for remote (off-LAN) use. This is no longer needed for REST
   // since all remote (off-LAN) communication now goes through WebRTC signaling via PeerJS.

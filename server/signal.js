@@ -56,6 +56,7 @@ function attachSignal(httpServer, { dispatch, iceServers, fingerprint }) {
       for (const pc of peers) try { pc.close(); } catch {}
       peers.clear();
     });
+    wss.isConnected = () => true;
     return wss;
   }
 
@@ -65,6 +66,7 @@ function attachSignal(httpServer, { dispatch, iceServers, fingerprint }) {
   const mainConn = connectSignaling('vyas-school-att-' + fingerprint, { dispatch, iceServers });
 
   return {
+    isConnected: () => pairingConn.isOpen() && mainConn.isOpen(),
     close: (callback) => {
       pairingConn.close();
       mainConn.close();
@@ -206,6 +208,7 @@ function connectSignaling(peerId, { dispatch, iceServers }) {
   connect();
 
   return {
+    isOpen: () => ws && ws.readyState === 1,
     close: () => {
       isClosed = true;
       clearInterval(heartbeatTimer);

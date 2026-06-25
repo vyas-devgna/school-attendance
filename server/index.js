@@ -13,7 +13,7 @@ const uuid = () => crypto.randomUUID();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const APP_VERSION = '2.1.0';
+const APP_VERSION = '2.2.0';
 const DB_PATH = process.env.DB_PATH || path.join(__dirname, 'db.json'); // override for tests
 const BACKUP_DIR = process.env.BACKUP_DIR || path.join(__dirname, 'backups');
 const INVITE_TTL_MS = 15 * 60 * 1000; // ponytail: codes/QRs expire in 15 min (edges 5,6,101)
@@ -183,6 +183,7 @@ app.get('/api/ping', (_req, res) => res.json({ ok: true }));
 app.get('/api/health', (_req, res) => res.json({ ok: true, version: APP_VERSION, uptime: Math.round(process.uptime()) }));
 
 function serverInfo() {
+  const isReady = !!(signalling && typeof signalling.isConnected === 'function' && signalling.isConnected());
   return {
     serverId: db.settings.serverId,
     fingerprint: db.settings.fingerprint,
@@ -194,11 +195,11 @@ function serverInfo() {
     // and are delivered only to authenticated devices via /api/me.
     iceServers: ICE_SERVERS.filter(s => !s.credential),
     endpoints: {
-      public: null,
+      public: isReady ? 'PeerJS P2P Active' : null,
       lan: `http://${getLanIp()}:${PORT}`,
       local: `http://localhost:${PORT}`,
     },
-    tunnelStatus: 'down',
+    tunnelStatus: isReady ? 'up' : 'down',
   };
 }
 app.get('/api/server-info', (_req, res) => res.json(serverInfo()));
@@ -212,7 +213,7 @@ app.get('/api/diagnostics', (_req, res) => {
     devices: { total: db.devices.length, active: db.devices.filter(d => !d.revoked).length, revoked: db.devices.filter(d => d.revoked).length },
     backup: { lastBackup: last ? fs.statSync(path.join(BACKUP_DIR, last)).mtime.toISOString() : null, backupCount: files.length },
     invites: { active: db.enrollmentTokens.filter(t => !t.used && Date.now() < new Date(t.expiresAt || 0).getTime()).length },
-    tunnel: { status: global.TUNNEL_URL ? 'up' : 'down', url: global.TUNNEL_URL || null, lastError: global.TUNNEL_ERROR || null },
+    tunnel: { status: (signalling && typeof signalling.isConnected === 'function' && signalling.isConnected()) ? 'up' : 'down', url: (signalling && typeof signalling.isConnected === 'function' && signalling.isConnected()) ? 'PeerJS P2P Active' : null, lastError: null },
     corrections: { pending: db.corrections.filter(c => c.status === 'pending').length },
   });
 });
