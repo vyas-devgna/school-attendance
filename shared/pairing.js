@@ -58,8 +58,9 @@
 
     if (!ATT.isLocalServed() && p.fingerprint) {
       // Remote devices must use WebRTC to reach the server.
-      // Connect WebRTC using the unique fingerprint-based PeerJS ID.
-      await ATT.conn.connectWebRTC('vyas-school-att-' + p.fingerprint).catch(() => {});
+      // Connect WebRTC using the unique device token hash for this device.
+      const tokenHash = await ATT.sha256(p.deviceToken);
+      await ATT.conn.connectWebRTC('vyas-school-att-' + tokenHash).catch(() => {});
     }
 
     // Now request server-info (either via WebRTC if connected, or LAN REST if on LAN)

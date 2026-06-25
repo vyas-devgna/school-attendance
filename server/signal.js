@@ -5,7 +5,7 @@ const rtc = require('node-datachannel');
 // Keep track of active WebRTC peer connections
 const activePeers = new Map(); // clientSrc -> { pc, ws }
 
-function attachSignal(httpServer, { dispatch, iceServers, fingerprint }) {
+function attachSignal(httpServer, { dispatch, iceServers, fingerprint, getActiveTokenHashes }) {
   if (!fingerprint) {
     // RUN THE OLD LOCAL WEBSOCKET SERVER FOR OFFLINE TESTS / FALLBACK!
     const { WebSocketServer } = require('ws');
@@ -57,19 +57,55 @@ function attachSignal(httpServer, { dispatch, iceServers, fingerprint }) {
       peers.clear();
     });
     wss.isConnected = () => true;
+    wss.registerDevice = () => {};
+    wss.unregisterDevice = () => {};
     return wss;
   }
 
   // CONNECT TO THE PUBLIC PEERJS SIGNALING SERVER!
   console.log(`[Signaling] Initializing PeerJS WebRTC bridge with fingerprint: ${fingerprint}`);
+  
+  const deviceConnections = new Map(); // tokenHash -> connection object
   const pairingConn = connectSignaling('vyas-school-att', { dispatch, iceServers });
-  const mainConn = connectSignaling('vyas-school-att-' + fingerprint, { dispatch, iceServers });
+
+  const registerDevice = (tokenHash) => {
+    if (!tokenHash || deviceConnections.has(tokenHash)) return;
+    console.log(`[Signaling] Registering constant pipeline for device: ${tokenHash.slice(0, 12)}...`);
+    const conn = connectSignaling('vyas-school-att-' + tokenHash, { dispatch, iceServers });
+    deviceConnections.set(tokenHash, conn);
+  };
+
+  const unregisterDevice = (tokenHash) => {
+    const conn = deviceConnections.get(tokenHash);
+    if (conn) {
+      console.log(`[Signaling] Unregistering pipeline for device: ${tokenHash.slice(0, 12)}...`);
+      conn.close();
+      deviceConnections.delete(tokenHash);
+    }
+  };
+
+  // Register all currently active devices on startup
+  const activeHashes = (typeof getActiveTokenHashes === 'function' ? getActiveTokenHashes() : []) || [];
+  for (const hash of activeHashes) {
+    registerDevice(hash);
+  }
 
   return {
-    isConnected: () => pairingConn.isOpen() && mainConn.isOpen(),
+    registerDevice,
+    unregisterDevice,
+    isConnected: () => {
+      if (!pairingConn.isOpen()) return false;
+      for (const conn of deviceConnections.values()) {
+        if (!conn.isOpen()) return false;
+      }
+      return true;
+    },
     close: (callback) => {
       pairingConn.close();
-      mainConn.close();
+      for (const conn of deviceConnections.values()) {
+        conn.close();
+      }
+      deviceConnections.clear();
       for (const peer of activePeers.values()) {
         try { peer.pc.close(); } catch {}
       }

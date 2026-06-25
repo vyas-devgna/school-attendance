@@ -3,7 +3,7 @@
 (function () {
   const ATT = (window.ATT = window.ATT || {});
 
-  ATT.VERSION = '2.2.0';
+  ATT.VERSION = '2.3.0';
 
   // Default public endpoint for remote (off-LAN) use. This is no longer needed for REST
   // since all remote (off-LAN) communication now goes through WebRTC signaling via PeerJS.
@@ -48,4 +48,10 @@
       location.reload();
     });
   }
+  // Helper to compute SHA-256 hash of a string in secure contexts (HTTPS / localhost).
+  ATT.sha256 = async function (str) {
+    const buf = new TextEncoder().encode(str);
+    const hash = await crypto.subtle.digest('SHA-256', buf);
+    return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join('');
+  };
 })();

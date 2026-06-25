@@ -13,7 +13,7 @@ const uuid = () => crypto.randomUUID();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const APP_VERSION = '2.2.0';
+const APP_VERSION = '2.3.0';
 const DB_PATH = process.env.DB_PATH || path.join(__dirname, 'db.json'); // override for tests
 const BACKUP_DIR = process.env.BACKUP_DIR || path.join(__dirname, 'backups');
 const INVITE_TTL_MS = 15 * 60 * 1000; // ponytail: codes/QRs expire in 15 min (edges 5,6,101)
@@ -621,6 +621,9 @@ app.post('/api/enroll', (req, res) => {
     db.devices.push(device);
   }
   saveDb();
+  if (signalling && typeof signalling.registerDevice === 'function') {
+    signalling.registerDevice(device.tokenHash);
+  }
 
   const user = db.users.find(u => u.id === invite.userId);
   addLog('enroll', invite.userId, `${user?.name} device ${deviceId.slice(0, 12)}`);
@@ -657,6 +660,9 @@ app.post('/api/revoke/:deviceId', (req, res) => {
   if (!device) return res.status(404).json({ error: 'Device not found' });
   device.revoked = true;
   saveDb();
+  if (signalling && typeof signalling.unregisterDevice === 'function') {
+    signalling.unregisterDevice(device.tokenHash);
+  }
   addLog('revoke', null, req.params.deviceId.slice(0, 12));
   res.json({ ok: true });
 });
@@ -666,6 +672,9 @@ app.post('/api/unrevoke/:deviceId', (req, res) => {
   if (!device) return res.status(404).json({ error: 'Device not found' });
   device.revoked = false;
   saveDb();
+  if (signalling && typeof signalling.registerDevice === 'function') {
+    signalling.registerDevice(device.tokenHash);
+  }
   res.json({ ok: true });
 });
 
@@ -1156,7 +1165,12 @@ server.listen(PORT, '0.0.0.0', () => {
   if (!process.env.NO_SIGNAL) {
     const signal = require('./signal');
     cleanupRtc = signal.cleanupRtc;
-    signalling = signal.attachSignal(server, { dispatch, iceServers: ICE_SERVERS, fingerprint: db.settings.fingerprint });
+    signalling = signal.attachSignal(server, { 
+      dispatch, 
+      iceServers: ICE_SERVERS, 
+      fingerprint: db.settings.fingerprint,
+      getActiveTokenHashes: () => db.devices.filter(d => !d.revoked).map(d => d.tokenHash)
+    });
   }
 });
 
