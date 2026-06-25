@@ -166,7 +166,9 @@ function serverInfo() {
     setupDone: !!db.settings.setupDone,
     version: APP_VERSION,
     signalPath: '/signal',
-    iceServers: ICE_SERVERS,
+    // ponytail: public info exposes only credential-less ICE (STUN). TURN creds are a secret
+    // and are delivered only to authenticated devices via /api/me.
+    iceServers: ICE_SERVERS.filter(s => !s.credential),
     endpoints: {
       public: global.TUNNEL_URL || null,
       lan: `http://${getLanIp()}:${PORT}`,
@@ -587,7 +589,8 @@ app.get('/api/me', (req, res) => {
   if (req.device) {
     const user = db.users.find(u => u.id === req.device.userId);
     if (!user) return res.status(404).json({ error: 'User not found' });
-    return res.json(sanitizeUser(user));
+    // Authenticated devices get the FULL ICE list (including TURN credentials, if configured).
+    return res.json({ ...sanitizeUser(user), iceServers: ICE_SERVERS });
   }
   if (req.localTrusted) {
     const admin = db.users.find(u => u.role === 'admin' && u.active !== false);
@@ -1038,5 +1041,6 @@ server.listen(PORT, '0.0.0.0', () => {
   }
   // WebRTC signalling pipeline over the same HTTP server
   attachSignal(server, { dispatch, iceServers: ICE_SERVERS });
-  startTunnel();
+  if (process.env.NO_TUNNEL) console.log('  (tunnel disabled via NO_TUNNEL)');
+  else startTunnel();
 });

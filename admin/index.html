@@ -8,7 +8,10 @@
   <title>Attendance Admin</title>
   <link rel="manifest" href="manifest.json">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%236366f1'/><text x='50' y='68' font-size='50' text-anchor='middle' fill='white'>⚙</text></svg>">
-  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="../shared/vendor/lucide.min.js"></script>
+  <script src="../shared/config.js"></script>
+  <script src="../shared/connection.js"></script>
+  <script src="../shared/pairing.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     :root { --bg:#0f1117; --surface:#1a1d27; --border:#2a2d3a; --text:#e4e4e7; --muted:#71717a; --accent:#6366f1; --green:#22c55e; --red:#ef4444; --yellow:#eab308; --blue:#3b82f6; --radius:10px; }
@@ -282,12 +285,11 @@
 
 <script>
   // --- State ---
-  let API = '';
+  let API = '';            // base for <a download> links (local server only)
   let users = [], classes = [], students = [], assignments = [], devices = [];
-  let adminPairing = null; // { server, deviceId }
 
-  // --- Install gate ---
-  const isLocalHost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+  // --- Install gate (the PC's localhost bypasses; remote admin must install) ---
+  const isLocalHost = ATT.isLocalServed();
   const isInstalled = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true || isLocalHost;
   let deferredPrompt = null;
   window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); deferredPrompt = e; });
@@ -299,53 +301,40 @@
   if (!isInstalled) { lucide.createIcons(); /* only install screen */ }
   else { document.getElementById('installGate').classList.add('hidden'); document.getElementById('realApp').classList.remove('hidden'); bootAdmin(); }
 
-  // --- SW ---
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
 
-  function genId() {
-    if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
-    return 'xxxx-xxxx-xxxx'.replace(/x/g, () => (Math.random() * 16 | 0).toString(16)) + '-' + Date.now().toString(36);
-  }
-
-  function bootAdmin() {
-    // Check if running on same server (local) or needs pairing (remote/GitHub Pages)
-    const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.port === '3000';
-    adminPairing = JSON.parse(localStorage.getItem('adminPairing') || 'null');
-
-    if (isLocal) {
-      API = window.location.origin + '/api';
-      document.getElementById('adminMain').classList.remove('hidden');
-      loadAll();
-    } else if (adminPairing) {
-      API = adminPairing.server + '/api';
-      document.getElementById('adminMain').classList.remove('hidden');
-      loadAll();
+  async function bootAdmin() {
+    if (ATT.isLocalServed()) {
+      // Served by the local server on the office PC → trusted local admin, no pairing needed.
+      API = location.origin + '/api';
+      ATT.conn.setEndpoint(location.origin, null);
+      showAdminMain();
     } else {
-      document.getElementById('pairingScreen').classList.remove('hidden');
+      const p = await ATT.pairing.reconnect();
+      if (p && p.role === 'admin') { API = p.server + '/api'; showAdminMain(); }
+      else { document.getElementById('pairingScreen').classList.remove('hidden'); }
     }
     lucide.createIcons();
   }
 
+  function showAdminMain() {
+    document.getElementById('pairingScreen').classList.add('hidden');
+    document.getElementById('adminMain').classList.remove('hidden');
+    loadAll();
+  }
+
   window.adminPair = async function() {
-    const server = document.getElementById('pairServer').value.trim().replace(/\/+$/, '');
+    const serverField = document.getElementById('pairServer').value.trim();
     const code = document.getElementById('pairCode').value.trim();
     const status = document.getElementById('pairStatus');
-    if (!server) { status.textContent = 'Enter server address'; return; }
-    if (!code || code.length !== 6) { status.textContent = 'Enter 6-digit code'; return; }
-    status.textContent = 'Pairing...'; status.style.color = 'var(--yellow)';
+    if (!code || code.length !== 6) { status.textContent = 'Enter the 6-digit code from the office admin screen'; status.style.color = 'var(--red)'; return; }
+    status.textContent = 'Pairing…'; status.style.color = 'var(--yellow)';
     try {
-      const deviceId = genId();
-      const res = await fetch(server + '/api/enroll', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Bypass-Tunnel-Reminder': 'true' }, body: JSON.stringify({ code, deviceId }) });
-      if (!res.ok) { const err = await res.json(); throw new Error(err.error); }
-      const result = await res.json();
-      if (result.user.role !== 'admin') throw new Error('This code is not for an admin user');
-      adminPairing = { server, deviceId };
-      localStorage.setItem('adminPairing', JSON.stringify(adminPairing));
-      API = server + '/api';
-      document.getElementById('pairingScreen').classList.add('hidden');
-      document.getElementById('adminMain').classList.remove('hidden');
-      loadAll();
-    } catch (e) { status.textContent = e.message; status.style.color = 'var(--red)'; }
+      // Server address is optional — defaults to the school's public address. Role is enforced server-side.
+      const pairing = await ATT.pairing.enroll({ code, expectApp: 'admin', server: serverField || undefined });
+      API = pairing.server + '/api';
+      showAdminMain();
+    } catch (e) { status.textContent = e.message || 'Pairing failed'; status.style.color = 'var(--red)'; }
   };
 
   let pairScanning = false, pairScanStream = null;
@@ -394,25 +383,14 @@
 
   async function processAdminQR(raw) {
     const status = document.getElementById('pairStatus');
+    const inv = ATT.pairing.parseQR(raw);
+    if (!inv) { status.textContent = 'This QR is not valid. Ask for a new code.'; status.style.color = 'var(--red)'; return; }
+    status.textContent = 'Pairing…'; status.style.color = 'var(--yellow)';
     try {
-      const data = JSON.parse(raw);
-      if (!data.server || !data.token) throw new Error('Invalid QR data');
-      status.textContent = 'Enrolling...'; status.style.color = 'var(--yellow)';
-      const deviceId = genId();
-      const res = await fetch(data.server + '/api/enroll', {
-        method: 'POST', headers: { 'Content-Type': 'application/json', 'Bypass-Tunnel-Reminder': 'true' },
-        body: JSON.stringify({ token: data.token, deviceId }),
-      });
-      if (!res.ok) { const err = await res.json(); throw new Error(err.error || 'Enrollment failed'); }
-      const result = await res.json();
-      if (result.user.role !== 'admin') throw new Error('This QR code is not for an admin user');
-      adminPairing = { server: data.server, deviceId };
-      localStorage.setItem('adminPairing', JSON.stringify(adminPairing));
-      API = data.server + '/api';
-      document.getElementById('pairingScreen').classList.add('hidden');
-      document.getElementById('adminMain').classList.remove('hidden');
-      loadAll();
-    } catch (e) { status.textContent = e.message; status.style.color = 'var(--red)'; }
+      const pairing = await ATT.pairing.enroll({ server: inv.server, token: inv.token, expectApp: 'admin' });
+      API = pairing.server + '/api';
+      showAdminMain();
+    } catch (e) { status.textContent = e.message || 'Pairing failed'; status.style.color = 'var(--red)'; }
   }
 
   // --- Tabs ---
@@ -448,8 +426,8 @@
     }
   }
 
-  async function f(path) { const r = await fetch(API + path, { headers: { 'Bypass-Tunnel-Reminder': 'true' } }); if (!r.ok) throw new Error(r.statusText); return r.json(); }
-  async function post(path, body) { const r = await fetch(API + path, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Bypass-Tunnel-Reminder': 'true' }, body: JSON.stringify(body) }); return r.json(); }
+  async function f(path) { return ATT.conn.request('/api' + path); }
+  async function post(path, body) { return ATT.conn.request('/api' + path, { method: 'POST', body }); }
 
   // --- HOME ---
   async function loadHome() {
@@ -630,7 +608,7 @@
 
   async function removeAssignment(id) {
     if (!confirm('Remove this assignment?')) return;
-    await fetch(API + '/assignments/' + id, { method: 'DELETE', headers: { 'Bypass-Tunnel-Reminder': 'true' } });
+    await ATT.conn.request('/api/assignments/' + id, { method: 'DELETE' });
     assignments = await f('/assignments'); renderAssignments();
   }
 
@@ -643,8 +621,7 @@
 
   async function generateQR(userId) {
     const uid = userId || document.getElementById('enrollUser').value;
-    const res = await fetch(API + '/enrollment-qr/' + uid, { method: 'POST', headers: { 'Bypass-Tunnel-Reminder': 'true' } });
-    const data = await res.json();
+    const data = await ATT.conn.request('/api/invite/' + uid, { method: 'POST' });
     const container = document.getElementById('qrResult');
     container.classList.remove('hidden');
     container.innerHTML = `
@@ -871,12 +848,11 @@
   async function restoreBackup(input) {
     if (!input.files.length) return;
     if (!confirm('⚠️ This will replace ALL current data with the backup. A backup of current data will be saved first. Continue?')) return;
-    const text = await input.files[0].text();
+    let data;
+    try { data = JSON.parse(await input.files[0].text()); }
+    catch { return alert('Restore failed: that file is not a valid backup (not readable JSON).'); }
     try {
-      const data = JSON.parse(text);
-      const res = await fetch(API + '/backup/restore', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Bypass-Tunnel-Reminder': 'true' }, body: JSON.stringify(data) });
-      const result = await res.json();
-      if (result.error) throw new Error(result.error);
+      const result = await ATT.conn.request('/api/backup/restore', { method: 'POST', body: data });
       alert(`Restored! ${result.users} users, ${result.students} students, ${result.classes} classes`);
       await loadAll();
     } catch (e) { alert('Restore failed: ' + e.message); }
@@ -893,14 +869,13 @@
   }
 
   async function saveSettings() {
-    await fetch(API + '/settings', {
+    await ATT.conn.request('/api/settings', {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json', 'Bypass-Tunnel-Reminder': 'true' },
-      body: JSON.stringify({
+      body: {
         schoolName: document.getElementById('setSchoolName').value,
         academicYear: document.getElementById('setAcademicYear').value,
         lockAfterHours: parseInt(document.getElementById('setLockHours').value) || 0,
-      }),
+      },
     });
     alert('Settings saved');
     await loadAll();

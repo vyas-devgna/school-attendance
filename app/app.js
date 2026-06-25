@@ -33,12 +33,6 @@
   document.getElementById('installGate').classList.add('hidden');
   document.getElementById('realApp').classList.remove('hidden');
 
-  // --- UUID fallback for HTTP ---
-  function genId() {
-    if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
-    return 'xxxx-xxxx-xxxx'.replace(/x/g, () => (Math.random() * 16 | 0).toString(16)) + '-' + Date.now().toString(36);
-  }
-
   // --- State ---
   const LS = {
     get: (k) => { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } },
@@ -46,7 +40,7 @@
     del: (k) => localStorage.removeItem(k),
   };
 
-  let pairing = LS.get('pairing'); // { server, deviceId, user }
+  let pairing = ATT.pairing.get(); // { server, deviceId, deviceToken, user, role }
   let connectionState = 'offline';
   let students = [];
   let attendance = {}; // { [studentId]: { status, note } }
@@ -133,26 +127,28 @@
     }
   }
 
-  // --- API helper ---
+  // --- API helper (routes through the shared transport: WebRTC → REST → error) ---
   async function api(path, opts = {}) {
-    const url = pairing.server + '/api' + path;
-    const headers = { 'Content-Type': 'application/json', ...opts.headers };
-    if (pairing?.deviceId) headers['x-device-id'] = pairing.deviceId;
-    headers['Bypass-Tunnel-Reminder'] = 'true';
-    const res = await fetch(url, { ...opts, headers });
-    if (res.status === 403) { setState('revoked'); showScreen('revoked'); throw new Error('revoked'); }
-    if (!res.ok) throw new Error(await res.text());
-    return res.json();
+    try {
+      return await ATT.conn.request('/api' + path, {
+        method: opts.method || 'GET',
+        body: opts.body ? JSON.parse(opts.body) : undefined,
+      });
+    } catch (e) {
+      if (e.revoked) { setState('revoked'); showScreen('revoked'); throw new Error('revoked'); }
+      throw e;
+    }
   }
 
   // --- Auto-reconnect ---
   async function checkConnection() {
+    await ATT.pairing.reconnect();
     try {
       const user = await api('/me');
+      if (user.iceServers) ATT.ICE = user.iceServers; // upgrade ICE (TURN) for paired device
       pairing.user = user;
-      LS.set('pairing', pairing);
+      ATT.pairing.save(pairing);
       setState('connected');
-      // Fetch assignments
       try { myAssignments = await api('/my-assignments'); } catch { myAssignments = pairing.user?.assignments || []; }
       setupHomeScreen(user);
     } catch (e) {
@@ -208,54 +204,34 @@
   window.manualEnroll = async function () {
     const code = document.getElementById('manualCode').value.trim();
     const statusEl = document.getElementById('scanStatus');
-    if (!code || code.length !== 6) { statusEl.textContent = 'Enter 6-digit code'; return; }
-    statusEl.textContent = 'Pairing...';
+    if (!code || code.length !== 6) { statusEl.textContent = 'Enter the 6-digit code'; return; }
+    statusEl.textContent = 'Pairing…';
     statusEl.style.color = 'var(--yellow)';
-    const server = window.location.origin;
     try {
-      const deviceId = genId();
-      const res = await fetch(server + '/api/enroll', {
-        method: 'POST', headers: { 'Content-Type': 'application/json', 'Bypass-Tunnel-Reminder': 'true' },
-        body: JSON.stringify({ code, deviceId }),
-      });
-      if (!res.ok) { const err = await res.json(); throw new Error(err.error || 'Enrollment failed'); }
-      const result = await res.json();
-      pairing = { server, deviceId, user: result.user };
-      LS.set('pairing', pairing);
-      setState('connected');
-      try { myAssignments = await api('/my-assignments'); } catch { myAssignments = result.user?.assignments || []; }
-      try {
-        const settings = await api('/settings');
-        LS.set('settings', settings);
-      } catch {}
-      setupHomeScreen(result.user);
-    } catch (e) { statusEl.textContent = e.message; statusEl.style.color = 'var(--red)'; }
+      // Served locally → pair over same-origin; remote → over the public server (tunnel/WebRTC).
+      pairing = await ATT.pairing.enroll({ code, expectApp: 'teacher', server: ATT.isLocalServed() ? location.origin : undefined });
+      await afterPair();
+    } catch (e) { statusEl.textContent = e.message || 'Pairing failed'; statusEl.style.color = 'var(--red)'; }
   };
+
+  async function afterPair() {
+    setState('connected');
+    try { const me = await api('/me'); if (me.iceServers) ATT.ICE = me.iceServers; } catch {}
+    try { myAssignments = await api('/my-assignments'); } catch { myAssignments = pairing.user?.assignments || []; }
+    try { const settings = await api('/settings'); LS.set('settings', settings); } catch {}
+    setupHomeScreen(pairing.user);
+  }
 
   async function processQR(raw) {
     const statusEl = document.getElementById('scanStatus');
+    const inv = ATT.pairing.parseQR(raw);
+    if (!inv) { statusEl.textContent = 'This QR is not valid. Ask admin to generate a new code.'; statusEl.style.color = 'var(--red)'; return; }
+    statusEl.textContent = 'Pairing…';
+    statusEl.style.color = 'var(--yellow)';
     try {
-      const data = JSON.parse(raw);
-      if (!data.server || !data.token) throw new Error('Invalid QR data');
-      statusEl.textContent = 'Enrolling...';
-      statusEl.style.color = 'var(--yellow)';
-      const deviceId = genId();
-      const res = await fetch(data.server + '/api/enroll', {
-        method: 'POST', headers: { 'Content-Type': 'application/json', 'Bypass-Tunnel-Reminder': 'true' },
-        body: JSON.stringify({ token: data.token, deviceId }),
-      });
-      if (!res.ok) { const err = await res.json(); throw new Error(err.error || 'Enrollment failed'); }
-      const result = await res.json();
-      pairing = { server: data.server, deviceId, user: result.user };
-      LS.set('pairing', pairing);
-      setState('connected');
-      try { myAssignments = await api('/my-assignments'); } catch { myAssignments = result.user?.assignments || []; }
-      try {
-        const settings = await api('/settings');
-        LS.set('settings', settings);
-      } catch {}
-      setupHomeScreen(result.user);
-    } catch (e) { statusEl.textContent = e.message; statusEl.style.color = 'var(--red)'; }
+      pairing = await ATT.pairing.enroll({ server: inv.server, token: inv.token, expectApp: 'teacher' });
+      await afterPair();
+    } catch (e) { statusEl.textContent = e.message || 'Pairing failed'; statusEl.style.color = 'var(--red)'; }
   }
 
   // --- Home screen setup ---
@@ -525,6 +501,10 @@
     const date = document.getElementById('attDate').value;
     if (!currentClassId || !date) return;
 
+    // Stamp a fresh op-id per record for this save: retries of THIS save dedupe on the
+    // server; a later edit gets new ids and syncs as an update (idempotency, edges 47-48).
+    for (const sid in attendance) attendance[sid].opId = ATT.genId();
+
     const localKey = `att_${currentClassId}_${date}`;
     LS.set(localKey, attendance);
 
@@ -605,6 +585,7 @@
         classId, studentId, date,
         status: data.status || 'present',
         note: data.note || '',
+        opId: data.opId,
         markedBy: pairing.user?.id,
         markedByRole: pairing.user?.role,
         deviceId: pairing.deviceId,
@@ -787,7 +768,7 @@
   // --- Unpair ---
   window.unpair = function () {
     if (!confirm('Clear pairing? You will need a new QR code to re-enroll.')) return;
-    LS.del('pairing');
+    ATT.pairing.clear();
     LS.del('pending_syncs');
     LS.del('pending_corrections');
     pairing = null;
