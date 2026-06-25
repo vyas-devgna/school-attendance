@@ -23,12 +23,9 @@
     }
   };
 
-  if (!isInstalled) {
-    document.getElementById('installGate').classList.remove('hidden');
-    document.getElementById('realApp')?.classList.add('hidden');
-    lucide.createIcons();
-    return; // ponytail: stop here, don't run app logic
-  }
+  // The unified shell (index.html) is the single install + pairing entry. If this view is
+  // opened without the app installed (and not on the office PC), bounce to the shell.
+  if (!isInstalled && !ATT.isLocalServed()) { location.replace('index.html'); return; }
 
   // --- Show real app ---
   document.getElementById('installGate').classList.add('hidden');
@@ -51,7 +48,10 @@
   // --- Init ---
   function init() {
     registerSW();
+    if (pairing && pairing.role === 'admin' && !ATT.isLocalServed()) { location.replace('admin.html'); return; }
     if (!pairing) {
+      // Not paired → go to the unified pairing shell (no separate teacher pairing screen).
+      if (!ATT.isLocalServed()) { location.replace('index.html'); return; }
       setState('not-paired');
       showScreen('scan');
     } else {

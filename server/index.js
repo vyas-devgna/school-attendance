@@ -13,7 +13,7 @@ const uuid = () => crypto.randomUUID();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const APP_VERSION = '3.0.0';
+const APP_VERSION = '3.1.0';
 const DB_PATH = process.env.DB_PATH || path.join(__dirname, 'db.json'); // override for tests
 const BACKUP_DIR = process.env.BACKUP_DIR || path.join(__dirname, 'backups');
 const INVITE_TTL_MS = 15 * 60 * 1000; // ponytail: codes/QRs expire in 15 min (edges 5,6,101)

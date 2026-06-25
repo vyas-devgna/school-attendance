@@ -1,0 +1,1124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#155e75">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <title>Attendance Admin</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%236366f1'/><text x='50' y='68' font-size='50' text-anchor='middle' fill='white'>⚙</text></svg>">
+  <script src="../shared/vendor/lucide.min.js"></script>
+  <script src="../shared/vendor/peerjs.min.js"></script>
+  <script src="../shared/config.js"></script>
+  <script src="../shared/connection.js"></script>
+  <script src="../shared/pairing.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    :root { --bg:#edf4f1; --surface:#fff; --border:#c8d8d2; --text:#17332d; --muted:#60756e; --accent:#155e75; --green:#15803d; --red:#b91c1c; --yellow:#a16207; --blue:#1d4ed8; --radius:12px; }
+    body { font-family:"Trebuchet MS","Nirmala UI",sans-serif; background:linear-gradient(135deg,rgba(21,94,117,.07),transparent 42%),repeating-linear-gradient(0deg,transparent 0 31px,rgba(23,51,45,.035) 31px 32px),var(--bg); color:var(--text); padding:0; margin:0; }
+    .wrap { max-width: 900px; margin: 0 auto; padding: 12px; min-height: 100vh; }
+    h1 { font-family:Georgia,serif; font-size:1.25rem; letter-spacing:-.01em; display:flex; align-items:center; gap:8px; padding:8px 0 12px; }
+    h2 { font-size: .95rem; color: var(--muted); margin: 16px 0 8px; }
+    .card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:16px; margin-bottom:12px; box-shadow:0 5px 18px rgba(23,51,45,.06); }
+    .tabs { display: flex; gap: 4px; margin-bottom: 16px; flex-wrap: wrap; }
+    .tab { padding: 8px 14px; border: 1px solid var(--border); border-radius: var(--radius); background: none; color: var(--muted); cursor: pointer; font-size: .8rem; display: inline-flex; align-items: center; gap: 4px; min-height: 40px; }
+    .tab.active { background: var(--accent); color: white; border-color: var(--accent); }
+    label { display: block; font-size: .8rem; color: var(--muted); margin-bottom: 4px; }
+    input, select, textarea { width:100%; padding:9px 12px; border:1px solid var(--border); border-radius:var(--radius); background:var(--surface); color:var(--text); font-size:.9rem; margin-bottom:8px; }
+    textarea { resize: vertical; }
+    button { padding: 8px 16px; border: none; border-radius: var(--radius); cursor: pointer; font-size: .85rem; display: inline-flex; align-items: center; gap: 6px; min-height: 40px; }
+    button:active { opacity: .7; }
+    button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible { outline:3px solid rgba(21,94,117,.25); outline-offset:2px; }
+    .btn-primary { background: var(--accent); color: white; }
+    .btn-success { background: var(--green); color: white; }
+    .btn-danger { background: var(--red); color: white; }
+    .btn-outline { background: none; border: 1px solid var(--border); color: var(--text); }
+    .btn-sm { padding: 4px 10px; font-size: .75rem; min-height: 30px; }
+    .btn-block { width: 100%; justify-content: center; }
+    table { width: 100%; border-collapse: collapse; font-size: .8rem; }
+    th, td { padding: 8px 6px; text-align: left; border-bottom: 1px solid var(--border); }
+    th { color: var(--muted); font-weight: 500; }
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: .7rem; }
+    .badge-green { background:#dcfce7; color:var(--green); }
+    .badge-red { background:#fee2e2; color:var(--red); }
+    .badge-yellow { background:#fef3c7; color:var(--yellow); }
+    .badge-blue { background:#dbeafe; color:var(--blue); }
+    .qr-container { text-align: center; padding: 16px; }
+    .qr-container img { max-width: 250px; border-radius: var(--radius); }
+    .hidden { display: none !important; }
+    .row { display: flex; gap: 8px; flex-wrap: wrap; }
+    .row > * { flex: 1; min-width: 140px; }
+    .status { font-size: .8rem; color: var(--muted); padding: 8px 0; }
+    .action-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 8px; margin-bottom: 16px; }
+    .action-card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:14px 10px; display:flex; flex-direction:column; align-items:center; gap:6px; cursor:pointer; text-align:center; font-size:.8rem; box-shadow:0 4px 14px rgba(23,51,45,.05); }
+    .action-card:active { opacity: .7; }
+    .action-card i { color: var(--accent); }
+    .stat-row { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid var(--border); font-size: .85rem; }
+    .stat-row:last-child { border-bottom: none; }
+    .stat-val { font-weight: 600; }
+    .install-screen { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; padding: 24px; text-align: center; gap: 20px; }
+    .install-screen h1 { font-size: 1.3rem; justify-content: center; }
+    .install-screen .steps { text-align: left; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; font-size: .85rem; line-height: 1.6; }
+    .scan-area { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; padding: 20px; min-height: 50vh; }
+    .scan-area p { color: var(--muted); text-align: center; }
+    @media (max-width: 600px) { .wrap { padding: 8px; } .tabs { overflow-x:auto; flex-wrap:nowrap; padding-bottom:4px; } .tab { flex:0 0 auto; } }
+    @media (prefers-reduced-motion:reduce) { *,*::before,*::after { scroll-behavior:auto !important; } }
+  </style>
+</head>
+<body>
+
+<!-- Install Gate -->
+<div id="installGate" class="install-screen">
+  <i data-lucide="shield" style="width:64px;height:64px;color:var(--accent)"></i>
+  <h1>Attendance Admin</h1>
+  <p style="color:var(--muted)">Install this app first to manage school attendance.</p>
+  <button class="btn-primary" id="btnInstall" onclick="triggerInstall()" style="max-width:300px">
+    <i data-lucide="download" style="width:18px;height:18px"></i> Install App
+  </button>
+  <div id="manualSteps" class="steps hidden">
+    <p style="margin-bottom:8px;font-weight:600">How to install:</p>
+    <ol><li>Tap the <strong>⋮ menu</strong> (three dots)</li><li>Tap <strong>"Install app"</strong></li><li>Open from your home screen / desktop</li></ol>
+  </div>
+</div>
+
+<!-- Real App -->
+<div class="wrap hidden" id="realApp">
+  <h1><i data-lucide="shield" style="color:var(--accent)"></i> <span id="schoolName">Attendance Admin</span></h1>
+
+  <!-- Pairing Screen (for remote admin) -->
+  <div id="pairingScreen" class="hidden">
+    <div class="scan-area">
+      <i data-lucide="scan-line" style="width:48px;height:48px;color:var(--accent)"></i>
+      <p>Scan the enrollment QR code<br>or enter the 6-digit code below</p>
+      <video id="pairVideo" autoplay playsinline class="hidden" style="width:100%;max-width:300px;border-radius:var(--radius);border:2px solid var(--accent)"></video>
+      <button class="btn-primary" id="btnStartPairScan" onclick="startPairScan()">
+        <i data-lucide="camera" style="width:18px;height:18px"></i> Scan QR Code
+      </button>
+      <div style="color:var(--muted);font-size:.8rem;margin:4px 0">— or enter code —</div>
+      <div style="width:100%;max-width:300px">
+        <label>6-Digit Pairing Code</label>
+        <input id="pairCode" type="text" inputmode="numeric" maxlength="6" pattern="[0-9]{6}" placeholder="000000" style="font-size:1.5rem;text-align:center;letter-spacing:.3em;font-weight:700">
+        <button class="btn-primary btn-block" onclick="adminPair()">
+          <i data-lucide="link" style="width:16px;height:16px"></i> Pair Device
+        </button>
+      </div>
+      <p id="pairStatus" style="color:var(--red)"></p>
+    </div>
+  </div>
+
+  <!-- First-run Setup Wizard (local admin only) -->
+  <div id="setupScreen" class="hidden">
+    <div class="card" style="max-width:480px;margin:24px auto">
+      <h1 style="padding-top:0"><i data-lucide="rocket" style="color:var(--accent)"></i> Welcome — let's set up your school</h1>
+      <p style="color:var(--muted);font-size:.85rem;margin-bottom:16px">This runs once. You can change everything later in Settings.</p>
+      <label>School name</label>
+      <input id="suSchool" placeholder="e.g. Sunrise School, Anand">
+      <label>Academic year</label>
+      <input id="suYear" placeholder="e.g. 2025-26">
+      <label>Your name (first admin)</label>
+      <input id="suAdmin" placeholder="e.g. Principal">
+      <label style="display:flex;align-items:center;gap:8px;margin-top:8px">
+        <input type="checkbox" id="suDemo" style="width:auto;margin:0"> Add demo classes & students to try it out
+      </label>
+      <button class="btn-primary btn-block" style="margin-top:12px" onclick="runSetup()"><i data-lucide="check" style="width:16px;height:16px"></i> Finish setup</button>
+      <p id="suStatus" style="color:var(--red);font-size:.85rem;margin-top:8px"></p>
+    </div>
+  </div>
+
+  <!-- Main Admin UI -->
+  <div id="adminMain" class="hidden">
+    <div class="tabs" id="mainTabs">
+      <button class="tab active" onclick="showTab('home',this)"><i data-lucide="home" style="width:14px;height:14px"></i> Home</button>
+      <button class="tab" onclick="showTab('users',this)"><i data-lucide="user" style="width:14px;height:14px"></i> Users</button>
+      <button class="tab" onclick="showTab('students',this)"><i data-lucide="users" style="width:14px;height:14px"></i> Students</button>
+      <button class="tab" onclick="showTab('classes',this)"><i data-lucide="school" style="width:14px;height:14px"></i> Classes</button>
+      <button class="tab" onclick="showTab('assign',this)"><i data-lucide="link" style="width:14px;height:14px"></i> Assign</button>
+      <button class="tab" onclick="showTab('enroll',this)"><i data-lucide="qr-code" style="width:14px;height:14px"></i> Pair</button>
+      <button class="tab" onclick="showTab('devices',this)"><i data-lucide="smartphone" style="width:14px;height:14px"></i> Devices</button>
+      <button class="tab" onclick="showTab('reports',this)"><i data-lucide="bar-chart-3" style="width:14px;height:14px"></i> Reports</button>
+      <button class="tab" onclick="showTab('backup',this)"><i data-lucide="database" style="width:14px;height:14px"></i> Backup</button>
+      <button class="tab" onclick="showTab('corrections',this)"><i data-lucide="edit" style="width:14px;height:14px"></i> Corrections <span id="corrBadge" class="badge badge-yellow hidden">0</span></button>
+      <button class="tab" onclick="showTab('settings',this)"><i data-lucide="settings" style="width:14px;height:14px"></i> Settings</button>
+      <button class="tab" onclick="showTab('audit',this)"><i data-lucide="scroll-text" style="width:14px;height:14px"></i> Activity</button>
+      <button class="tab" onclick="showTab('diagnostics',this)"><i data-lucide="stethoscope" style="width:14px;height:14px"></i> Diagnostics</button>
+    </div>
+
+    <!-- HOME -->
+    <div id="tab-home" class="card">
+      <h2>Today's Overview</h2>
+      <div id="homeStats"></div>
+      <h2 style="margin-top:16px">Quick Actions</h2>
+      <div class="action-cards">
+        <div class="action-card" onclick="showTab('enroll',document.querySelectorAll('.tab')[5])"><i data-lucide="qr-code" style="width:24px;height:24px"></i>Pair Device</div>
+        <div class="action-card" onclick="showTab('users',document.querySelectorAll('.tab')[1])"><i data-lucide="user-plus" style="width:24px;height:24px"></i>Add User</div>
+        <div class="action-card" onclick="showTab('students',document.querySelectorAll('.tab')[2])"><i data-lucide="user-plus" style="width:24px;height:24px"></i>Add Student</div>
+        <div class="action-card" onclick="showTab('reports',document.querySelectorAll('.tab')[7])"><i data-lucide="file-text" style="width:24px;height:24px"></i>Reports</div>
+        <div class="action-card" onclick="showTab('backup',document.querySelectorAll('.tab')[8])"><i data-lucide="download" style="width:24px;height:24px"></i>Backup</div>
+      </div>
+    </div>
+
+    <!-- USERS -->
+    <div id="tab-users" class="card hidden">
+      <h2>Add User</h2>
+      <div class="row">
+        <div><label>Name</label><input id="newUserName" placeholder="Teacher name"></div>
+        <div><label>Role</label><select id="newUserRole"><option value="class_teacher">Class Teacher</option><option value="subject_teacher">Subject Teacher</option><option value="admin">Admin</option></select></div>
+      </div>
+      <button class="btn-primary" onclick="addUser()"><i data-lucide="plus" style="width:14px;height:14px"></i> Add User</button>
+      <h2>All Users</h2>
+      <div style="overflow-x:auto"><table><thead><tr><th>Name</th><th>Role</th><th>Status</th><th>Actions</th></tr></thead><tbody id="userRows"></tbody></table></div>
+    </div>
+
+    <!-- STUDENTS -->
+    <div id="tab-students" class="card hidden">
+      <h2>Add Student</h2>
+      <div class="row">
+        <div><label>Name</label><input id="newStudentName" placeholder="Student name"></div>
+        <div><label>Class</label><select id="newStudentClass"></select></div>
+        <div><label>Roll No</label><input id="newStudentRoll" type="number" placeholder="Auto"></div>
+      </div>
+      <button class="btn-primary" onclick="addStudent()"><i data-lucide="plus" style="width:14px;height:14px"></i> Add Student</button>
+
+      <h2>Import Students (CSV)</h2>
+      <div class="row"><div><label>Class</label><select id="importClass"></select></div></div>
+      <textarea id="csvData" rows="4" placeholder="name,rollNo&#10;Aarav Patel,1&#10;Diya Shah,2"></textarea>
+      <div style="display:flex;gap:8px">
+        <button class="btn-primary" onclick="importCSV()"><i data-lucide="upload" style="width:14px;height:14px"></i> Import</button>
+        <button class="btn-outline" onclick="downloadFile('/api/students/csv-sample','student-import-sample.csv')"><i data-lucide="download" style="width:14px;height:14px"></i> Sample CSV</button>
+      </div>
+      <div id="importResult" class="hidden" style="margin-top:8px"></div>
+
+      <h2>Student List</h2>
+      <div class="row" style="margin-bottom:8px"><div><label>Filter by Class</label><select id="filterStudentClass" onchange="loadStudents()"></select></div></div>
+      <div style="overflow-x:auto"><table><thead><tr><th>#</th><th>Name</th><th>Class</th><th>Status</th><th>Actions</th></tr></thead><tbody id="studentRows"></tbody></table></div>
+    </div>
+
+    <!-- CLASSES -->
+    <div id="tab-classes" class="card hidden">
+      <h2>Add Class</h2>
+      <div class="row">
+        <div><label>Class Name</label><input id="newClassName" placeholder="e.g. 5"></div>
+        <div><label>Division</label><input id="newClassDiv" placeholder="e.g. A"></div>
+      </div>
+      <button class="btn-primary" onclick="addClass()"><i data-lucide="plus" style="width:14px;height:14px"></i> Add Class</button>
+      <h2>All Classes</h2>
+      <div id="classList"></div>
+    </div>
+
+    <!-- ASSIGN -->
+    <div id="tab-assign" class="card hidden">
+      <h2>Assign Class Teacher</h2>
+      <div class="row">
+        <div><label>Teacher</label><select id="assignTeacher"></select></div>
+        <div><label>Class</label><select id="assignClass"></select></div>
+      </div>
+      <button class="btn-primary" onclick="assignClassTeacher()"><i data-lucide="link" style="width:14px;height:14px"></i> Assign</button>
+
+      <h2>Assign Subject Teacher</h2>
+      <div class="row">
+        <div><label>Teacher</label><select id="subjectTeacher"></select></div>
+        <div><label>Class</label><select id="subjectClass"></select></div>
+      </div>
+      <div class="row">
+        <div><label>Days (optional)</label><input id="subjectDays" placeholder="mon,tue,wed"></div>
+        <div><label>Temporary?</label><select id="subjectTemp"><option value="no">No</option><option value="yes">Yes (set dates)</option></select></div>
+      </div>
+      <div class="row">
+        <div><label>Start Date</label><input type="date" id="subjectStart"></div>
+        <div><label>End Date</label><input type="date" id="subjectEnd"></div>
+      </div>
+      <button class="btn-primary" onclick="assignSubjectTeacher()"><i data-lucide="check" style="width:14px;height:14px"></i> Assign</button>
+
+      <h2>Temporary Substitute</h2>
+      <div class="row">
+        <div><label>Substitute Teacher</label><select id="subTeacher"></select></div>
+        <div><label>Class</label><select id="subClass"></select></div>
+      </div>
+      <div class="row">
+        <div><label>Start Date</label><input type="date" id="subStart"></div>
+        <div><label>End Date</label><input type="date" id="subEnd"></div>
+      </div>
+      <input id="subReason" placeholder="Reason (optional, e.g. teacher on leave)">
+      <button class="btn-primary" onclick="assignSubstitute()"><i data-lucide="user-cog" style="width:14px;height:14px"></i> Assign Substitute</button>
+
+      <h2>Current Assignments</h2>
+      <div style="overflow-x:auto"><table><thead><tr><th>Teacher</th><th>Class</th><th>Type</th><th>Days</th><th>Actions</th></tr></thead><tbody id="assignRows"></tbody></table></div>
+    </div>
+
+    <!-- ENROLL / PAIR -->
+    <div id="tab-enroll" class="card hidden">
+      <h2>Generate Pairing QR / Code</h2>
+      <label>Select User</label>
+      <select id="enrollUser"></select>
+      <button class="btn-primary" onclick="generateQR()"><i data-lucide="qr-code" style="width:14px;height:14px"></i> Generate</button>
+      <div id="qrResult" class="qr-container hidden"></div>
+    </div>
+
+    <!-- DEVICES -->
+    <div id="tab-devices" class="card hidden">
+      <h2>Paired Devices</h2>
+      <div style="overflow-x:auto"><table><thead><tr><th>User</th><th>Role</th><th>Device</th><th>Status</th><th>Actions</th></tr></thead><tbody id="deviceRows"></tbody></table></div>
+    </div>
+
+    <!-- REPORTS -->
+    <div id="tab-reports" class="card hidden">
+      <h2>Reports</h2>
+      <div class="row" style="margin-bottom:8px;display:flex;gap:8px;flex-wrap:wrap">
+        <div style="flex:1;min-width:120px"><label>Class</label><select id="reportClass" onchange="changeReport()"></select></div>
+        <div style="flex:1;min-width:120px">
+          <label>Report Type</label>
+          <select id="reportType" onchange="changeReport()">
+            <option value="daily">Daily Attendance</option>
+            <option value="weekly">Weekly View</option>
+            <option value="monthly">Monthly View</option>
+            <option value="summary">Overall Summary</option>
+            <option value="missing">Missing Classes</option>
+            <option value="absentees">Absentees Today</option>
+          </select>
+        </div>
+        <div id="reportDateCol" style="flex:1;min-width:120px"><label>Date</label><input type="date" id="reportDate" onchange="changeReport()"></div>
+        <div id="reportMonthCol" class="hidden" style="flex:1;min-width:120px"><label>Month</label><input type="month" id="reportMonth" onchange="changeReport()"></div>
+      </div>
+      <div class="row" style="margin-bottom:12px;display:flex;gap:8px">
+        <button id="exportLink" class="btn-sm btn-outline hidden"><i data-lucide="download" style="width:14px;height:14px"></i> Export CSV</button>
+      </div>
+      <div id="reportContent"></div>
+    </div>
+
+    <!-- BACKUP -->
+    <div id="tab-backup" class="card hidden">
+      <h2>Backup & Restore</h2>
+      <div id="backupStatus" class="mb-12"></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn-primary" onclick="downloadFile('/api/backup/download','attendance-backup-'+ATT.localDate()+'.json')"><i data-lucide="download" style="width:14px;height:14px"></i> Download Backup</button>
+        <button class="btn-success" onclick="createBackupNow()"><i data-lucide="save" style="width:14px;height:14px"></i> Backup Now</button>
+        <button class="btn-outline" onclick="document.getElementById('restoreFile').click()"><i data-lucide="upload" style="width:14px;height:14px"></i> Restore from File</button>
+        <input type="file" id="restoreFile" accept=".json" class="hidden" onchange="restoreBackup(this)">
+      </div>
+      <h2>Recent Backups</h2>
+      <div id="backupList"></div>
+    </div>
+
+    <!-- SETTINGS -->
+    <div id="tab-settings" class="card hidden">
+      <h2>School Settings</h2>
+      <label>School Name</label><input id="setSchoolName">
+      <label>Academic Year</label><input id="setAcademicYear">
+      <label>Lock Attendance After (hours)</label><input id="setLockHours" type="number">
+      <button class="btn-primary" onclick="saveSettings()"><i data-lucide="save" style="width:14px;height:14px"></i> Save Settings</button>
+
+      <h2 style="margin-top:20px">Holidays</h2>
+      <p style="color:var(--muted);font-size:.8rem;margin-bottom:8px">Teachers see a warning before marking on these days.</p>
+      <div class="row">
+        <div><label>Date</label><input type="date" id="holDate"></div>
+        <div><label>Name</label><input id="holName" placeholder="e.g. Diwali"></div>
+      </div>
+      <button class="btn-outline btn-sm" onclick="addHoliday()"><i data-lucide="plus" style="width:14px;height:14px"></i> Add Holiday</button>
+      <div id="holidayList" style="margin-top:8px"></div>
+    </div>
+
+    <!-- CORRECTIONS -->
+    <div id="tab-corrections" class="card hidden">
+      <h2>Correction Requests</h2>
+      <div id="correctionRows"></div>
+    </div>
+
+    <!-- ACTIVITY LOG -->
+    <div id="tab-audit" class="card hidden">
+      <h2>Activity Log</h2>
+      <p style="color:var(--muted);font-size:.8rem;margin-bottom:8px">Recent changes made in the system.</p>
+      <div style="overflow-x:auto" id="auditRows"></div>
+    </div>
+
+    <!-- DIAGNOSTICS -->
+    <div id="tab-diagnostics" class="card hidden">
+      <h2>Diagnostics</h2>
+      <p style="color:var(--muted);font-size:.8rem;margin-bottom:8px">For troubleshooting. Not needed for daily use.</p>
+      <div id="diagBody"></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">
+        <button class="btn-outline btn-sm" onclick="copyDiag()"><i data-lucide="copy" style="width:14px;height:14px"></i> Copy report</button>
+        <button class="btn-outline btn-sm" onclick="downloadFile('/api/diagnostics','diagnostics.json')"><i data-lucide="download" style="width:14px;height:14px"></i> Download report</button>
+      </div>
+      <div class="card" style="margin-top:12px;background:var(--bg)">
+        <h2 style="margin-top:0">If something is wrong</h2>
+        <ul style="font-size:.82rem;line-height:1.7;padding-left:18px;color:var(--text)">
+          <li><strong>App won't pair:</strong> ask the office admin to open this panel and make a new code, then scan/type it.</li>
+          <li><strong>"Remote access is off":</strong> the office PC or its internet is down. Local Wi-Fi still works.</li>
+          <li><strong>App shows old screens:</strong> close and reopen the installed app — it refreshes itself.</li>
+          <li><strong>Device removed:</strong> the admin can restore it in the Devices tab.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="status" id="statusBar">Loading...</div>
+</div>
+
+<script>
+  // --- State ---
+  let API = '';            // base for <a download> links (local server only)
+  let users = [], classes = [], students = [], assignments = [], devices = [];
+
+  // --- Install gate (the PC's localhost bypasses; remote admin must install) ---
+  const isLocalHost = ATT.isOfficePc();
+  const isInstalled = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true || isLocalHost;
+  let deferredPrompt = null;
+  window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); deferredPrompt = e; });
+  window.triggerInstall = function() {
+    if (deferredPrompt) { deferredPrompt.prompt(); deferredPrompt.userChoice.then(() => { deferredPrompt = null; }); }
+    else { document.getElementById('manualSteps').classList.remove('hidden'); document.getElementById('btnInstall').textContent = 'Follow the steps below'; }
+  };
+
+  // The unified shell (index.html) is the single install + pairing entry point.
+  if (!isInstalled) { location.replace('index.html'); }
+  else { document.getElementById('installGate').classList.add('hidden'); document.getElementById('realApp').classList.remove('hidden'); bootAdmin(); }
+
+  if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+
+  async function bootAdmin() {
+    if (ATT.isOfficePc()) {
+      // Served by the local server on the office PC → trusted local admin, no pairing needed.
+      API = location.origin + '/api';
+      ATT.conn.setEndpoint(location.origin, null);
+      const s = await f('/settings').catch(() => ({ setupDone: false }));
+      if (!s.setupDone) document.getElementById('setupScreen').classList.remove('hidden');
+      else showAdminMain();
+    } else {
+      try {
+        const p = await ATT.pairing.reconnect();
+        if (p && p.role === 'admin') { API = p.server + '/api'; showAdminMain(); }
+        else if (p) { location.replace('teacher.html'); return; } // paired, not admin → teacher view
+        else { location.replace('index.html'); return; }          // not paired → unified pairing shell
+      } catch (e) {
+        // identity/fingerprint mismatch → re-pair from the shell
+        location.replace('index.html'); return;
+      }
+    }
+    lucide.createIcons();
+  }
+
+  function showAdminMain() {
+    document.getElementById('pairingScreen').classList.add('hidden');
+    document.getElementById('setupScreen').classList.add('hidden');
+    document.getElementById('adminMain').classList.remove('hidden');
+    loadAll();
+  }
+
+  window.runSetup = async function () {
+    const schoolName = document.getElementById('suSchool').value.trim();
+    const status = document.getElementById('suStatus');
+    if (!schoolName) { status.textContent = 'Please enter a school name'; return; }
+    status.textContent = 'Setting up…'; status.style.color = 'var(--yellow)';
+    try {
+      await post('/setup', {
+        schoolName,
+        academicYear: document.getElementById('suYear').value.trim(),
+        adminName: document.getElementById('suAdmin').value.trim() || 'Admin',
+        demoData: document.getElementById('suDemo').checked,
+      });
+      showAdminMain();
+    } catch (e) { status.textContent = e.message || 'Setup failed'; status.style.color = 'var(--red)'; }
+  };
+
+  // Token-aware file download — works for local admin AND remote (paired) admin.
+  async function downloadFile(apiPath, filename) {
+    const base = API.replace(/\/api$/, '');
+    const token = (ATT.pairing.get() || {}).deviceToken;
+    const headers = { 'Bypass-Tunnel-Reminder': 'true' };
+    if (token) headers['x-device-token'] = token;
+    try {
+      const res = await fetch(base + apiPath, { headers });
+      if (!res.ok) return alert('Download failed (' + res.status + ')');
+      const blob = await res.blob();
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob); a.download = filename; document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+    } catch { alert('Download failed — cannot reach the server.'); }
+  }
+  window.downloadFile = downloadFile;
+
+  window.adminPair = async function() {
+    const code = document.getElementById('pairCode').value.trim();
+    const status = document.getElementById('pairStatus');
+    if (!code || code.length !== 6) { status.textContent = 'Enter the 6-digit code from the office admin screen'; status.style.color = 'var(--red)'; return; }
+    status.textContent = 'Pairing…'; status.style.color = 'var(--yellow)';
+    try {
+      // Server address is optional — defaults to the school's public address. Role is enforced server-side.
+      const pairing = await ATT.pairing.enroll({ code, expectApp: 'admin' });
+      API = pairing.server + '/api';
+      showAdminMain();
+    } catch (e) { status.textContent = e.message || 'Pairing failed'; status.style.color = 'var(--red)'; }
+  };
+
+  let pairScanning = false, pairScanStream = null;
+
+  window.startPairScan = async function () {
+    const video = document.getElementById('pairVideo');
+    const btn = document.getElementById('btnStartPairScan');
+    const status = document.getElementById('pairStatus');
+    if (pairScanning) { stopPairScan(); return; }
+    if (!('BarcodeDetector' in window)) {
+      status.textContent = 'Camera QR not supported. Enter pairing details manually.';
+      status.style.color = 'var(--red)';
+      return;
+    }
+    try {
+      pairScanStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+      video.srcObject = pairScanStream;
+      video.classList.remove('hidden');
+      btn.innerHTML = '<i data-lucide="x" style="width:18px;height:18px"></i> Stop';
+      lucide.createIcons();
+      pairScanning = true;
+      const detector = new BarcodeDetector({ formats: ['qr_code'] });
+      detectPairLoop(video, detector);
+    } catch (e) {
+      status.textContent = 'Camera error: ' + e.message;
+      status.style.color = 'var(--red)';
+    }
+  };
+
+  async function detectPairLoop(video, detector) {
+    if (!pairScanning) return;
+    try {
+      const barcodes = await detector.detect(video);
+      if (barcodes.length > 0) { stopPairScan(); await processAdminQR(barcodes[0].rawValue); return; }
+    } catch {}
+    requestAnimationFrame(() => detectPairLoop(video, detector));
+  }
+
+  function stopPairScan() {
+    pairScanning = false;
+    document.getElementById('pairVideo').classList.add('hidden');
+    if (pairScanStream) { pairScanStream.getTracks().forEach(t => t.stop()); pairScanStream = null; }
+    document.getElementById('btnStartPairScan').innerHTML = '<i data-lucide="camera" style="width:18px;height:18px"></i> Scan QR Code';
+    lucide.createIcons();
+  }
+
+  async function processAdminQR(raw) {
+    const status = document.getElementById('pairStatus');
+    const inv = ATT.pairing.parseQR(raw);
+    if (!inv) { status.textContent = 'This QR is not valid. Ask for a new code.'; status.style.color = 'var(--red)'; return; }
+    status.textContent = 'Pairing…'; status.style.color = 'var(--yellow)';
+    try {
+      const pairing = await ATT.pairing.enroll({ server: inv.server, token: inv.token, expectApp: 'admin' });
+      API = pairing.server + '/api';
+      showAdminMain();
+    } catch (e) { status.textContent = e.message || 'Pairing failed'; status.style.color = 'var(--red)'; }
+  }
+
+  // --- Tabs ---
+  function showTab(name, btn) {
+    document.querySelectorAll('[id^="tab-"]').forEach(el => el.classList.add('hidden'));
+    document.getElementById('tab-' + name)?.classList.remove('hidden');
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    if (btn) btn.classList.add('active');
+    if (name === 'home') loadHome();
+    if (name === 'devices') loadDevices();
+    if (name === 'assign') populateAssign();
+    if (name === 'enroll') populateEnroll();
+    if (name === 'students') { populateStudentDropdowns(); loadStudents(); }
+    if (name === 'classes') renderClasses();
+    if (name === 'reports') populateReportDropdowns();
+    if (name === 'backup') loadBackupInfo();
+    if (name === 'settings') loadSettings();
+    if (name === 'corrections') loadCorrections();
+    if (name === 'audit') loadAudit();
+    if (name === 'diagnostics') loadDiagnostics();
+  }
+
+  // --- CORRECTIONS ---
+  async function loadCorrections() {
+    const el = document.getElementById('correctionRows');
+    el.innerHTML = '<p style="color:var(--muted)">Loading…</p>';
+    try {
+      const list = await f('/corrections');
+      if (!list.length) { el.innerHTML = '<p style="color:var(--muted)">No correction requests.</p>'; return; }
+      el.innerHTML = `<table><thead><tr><th>Student</th><th>Class</th><th>Date</th><th>Change</th><th>Reason</th><th>Status</th><th></th></tr></thead><tbody>${
+        list.map(c => `<tr>
+          <td>${esc(c.studentName) || '?'}</td><td>${esc(c.classLabel)}</td><td>${esc(c.date)}</td>
+          <td>${esc(c.oldStatus) || '?'} → <strong>${esc(c.newStatus)}</strong></td>
+          <td style="font-size:.75rem">${esc(c.reason)}</td>
+          <td><span class="badge ${c.status === 'pending' ? 'badge-yellow' : c.status === 'approved' ? 'badge-green' : 'badge-red'}">${c.status}</span></td>
+          <td>${c.status === 'pending' ? `<button class="btn-sm btn-success" onclick="reviewCorrection('${c.id}','approve')">Approve</button> <button class="btn-sm btn-danger" onclick="reviewCorrection('${c.id}','reject')">Reject</button>` : ''}</td>
+        </tr>`).join('')}</tbody></table>`;
+    } catch { el.innerHTML = '<p style="color:var(--red)">Could not load corrections.</p>'; }
+  }
+  window.reviewCorrection = async function (id, action) {
+    await post('/corrections/' + id + '/' + action, {});
+    loadCorrections(); loadHome();
+  };
+
+  // --- ACTIVITY LOG ---
+  async function loadAudit() {
+    const el = document.getElementById('auditRows');
+    el.innerHTML = '<p style="color:var(--muted)">Loading…</p>';
+    try {
+      const list = await f('/audit?limit=200');
+      if (!list.length) { el.innerHTML = '<p style="color:var(--muted)">No activity yet.</p>'; return; }
+      el.innerHTML = `<table><thead><tr><th>When</th><th>Action</th><th>Detail</th></tr></thead><tbody>${
+        list.map(l => `<tr><td style="font-size:.72rem;white-space:nowrap">${new Date(l.timestamp).toLocaleString('en-IN')}</td><td>${esc(l.action).replace(/_/g, ' ')}</td><td style="font-size:.78rem;color:var(--muted)">${esc(l.detail)}</td></tr>`).join('')}</tbody></table>`;
+    } catch { el.innerHTML = '<p style="color:var(--red)">Could not load activity.</p>'; }
+  }
+
+  // --- DIAGNOSTICS ---
+  let lastDiag = null;
+  async function loadDiagnostics() {
+    const el = document.getElementById('diagBody');
+    el.innerHTML = '<p style="color:var(--muted)">Loading…</p>';
+    try {
+      const d = await f('/diagnostics');
+      lastDiag = d;
+      const row = (k, v, color) => `<div class="stat-row"><span>${k}</span><span class="stat-val" ${color ? `style="color:${color}"` : ''}>${v}</span></div>`;
+      el.innerHTML =
+        row('Server', 'Running v' + d.server.version, 'var(--green)') +
+        row('Remote access', d.tunnel.status === 'up' ? 'On' : 'Off', d.tunnel.status === 'up' ? 'var(--green)' : 'var(--red)') +
+        (d.tunnel.url ? row('Public address', d.tunnel.url) : '') +
+        row('Local address', d.server.endpoints.lan) +
+        row('Database', d.db.ok ? 'OK' : 'Problem', d.db.ok ? 'var(--green)' : 'var(--red)') +
+        row('Students / Classes / Users', `${d.db.students} / ${d.db.classes} / ${d.db.users}`) +
+        row('Connected devices', `${d.devices.active} active, ${d.devices.revoked} removed`) +
+        row('Pending corrections', d.corrections.pending) +
+        row('Last backup', d.backup.lastBackup ? new Date(d.backup.lastBackup).toLocaleString('en-IN') : 'Never', d.backup.lastBackup ? '' : 'var(--red)') +
+        row('Active pairing codes', d.invites.active) +
+        row('App version', ATT.VERSION);
+    } catch { el.innerHTML = '<p style="color:var(--red)">Could not load diagnostics.</p>'; }
+  }
+  window.copyDiag = function () {
+    if (!lastDiag) return;
+    navigator.clipboard.writeText(JSON.stringify(lastDiag, null, 2)).then(() => alert('Diagnostic report copied.'), () => alert('Copy failed.'));
+  };
+
+  // --- Load all ---
+  async function loadAll() {
+    try {
+      const [u, c, s, a, settings] = await Promise.all([
+        f('/users/all'), f('/classes'), f('/students'), f('/assignments'), f('/settings'),
+      ]);
+      users = u; classes = c; students = s; assignments = a;
+      document.getElementById('schoolName').textContent = settings.schoolName || 'Attendance Admin';
+      renderUsers();
+      document.getElementById('statusBar').textContent = `Connected — ${users.length} users, ${classes.length} classes, ${students.length} students`;
+      loadHome();
+    } catch (e) {
+      document.getElementById('statusBar').textContent = 'Cannot reach server. Check connection.';
+    }
+  }
+
+  async function f(path) { return ATT.conn.request('/api' + path); }
+  async function post(path, body) { return ATT.conn.request('/api' + path, { method: 'POST', body }); }
+  const esc = ATT.esc;
+
+  // --- HOME ---
+  async function loadHome() {
+    const el = document.getElementById('homeStats');
+    const today = ATT.localDate();
+    try {
+      const [missing, diag] = await Promise.all([f('/reports/missing/' + today), f('/diagnostics')]);
+      const totalClasses = classes.length;
+      const markedClasses = totalClasses - missing.missing.length;
+      const remote = diag.tunnel.status === 'up';
+      const pendingCorr = diag.corrections.pending;
+      const corrBadge = document.getElementById('corrBadge');
+      if (corrBadge) { corrBadge.textContent = pendingCorr; corrBadge.classList.toggle('hidden', !pendingCorr); }
+      el.innerHTML = `
+        <div class="stat-row"><span>Date</span><span class="stat-val">${new Date().toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' })}</span></div>
+        <div class="stat-row"><span>Server</span><span class="stat-val" style="color:var(--green)">Running ✓</span></div>
+        <div class="stat-row"><span>Remote access</span><span class="stat-val" style="color:${remote ? 'var(--green)' : 'var(--red)'}">${remote ? 'On ✓' : 'Off'}</span></div>
+        <div class="stat-row"><span>Attendance done today</span><span class="stat-val">${markedClasses}/${totalClasses} classes</span></div>
+        <div class="stat-row"><span>Not marked</span><span class="stat-val" style="color:${missing.missing.length ? 'var(--red)' : 'var(--green)'}">${missing.missing.length ? missing.missing.map(m => esc(m.classLabel)).join(', ') : 'All done ✓'}</span></div>
+        <div class="stat-row"><span>Connected devices</span><span class="stat-val">${diag.devices.active}</span></div>
+        <div class="stat-row"><span>Pending corrections</span><span class="stat-val" style="color:${pendingCorr ? 'var(--yellow)' : 'var(--muted)'}">${pendingCorr}</span></div>
+        <div class="stat-row"><span>Users / Students</span><span class="stat-val">${users.length} / ${students.length}</span></div>
+        <div class="stat-row"><span>Last backup</span><span class="stat-val" style="color:${diag.backup.lastBackup ? '' : 'var(--red)'}">${diag.backup.lastBackup ? new Date(diag.backup.lastBackup).toLocaleString('en-IN') : 'Never'}</span></div>
+      `;
+    } catch { el.innerHTML = '<p style="color:var(--muted)">Server unavailable</p>'; }
+  }
+
+  // --- USERS ---
+  function renderUsers() {
+    document.getElementById('userRows').innerHTML = users.map(u => {
+      const roleBadge = u.role === 'admin' ? 'badge-yellow' : u.role === 'class_teacher' ? 'badge-green' : 'badge-blue';
+      return `<tr>
+        <td>${esc(u.name)}</td>
+        <td><span class="badge ${roleBadge}">${u.role.replace(/_/g, ' ')}</span></td>
+        <td><span class="badge ${u.active !== false ? 'badge-green' : 'badge-red'}">${u.active !== false ? 'Active' : 'Disabled'}</span></td>
+        <td>
+          <button class="btn-sm btn-primary" onclick="quickEnroll('${u.id}')">QR</button>
+          <button class="btn-sm ${u.active !== false ? 'btn-danger' : 'btn-success'}" onclick="toggleUser('${u.id}')">${u.active !== false ? 'Disable' : 'Enable'}</button>
+        </td>
+      </tr>`;
+    }).join('');
+  }
+
+  async function addUser() {
+    const name = document.getElementById('newUserName').value.trim();
+    const role = document.getElementById('newUserRole').value;
+    if (!name) return alert('Enter a name');
+    await post('/users', { name, role });
+    document.getElementById('newUserName').value = '';
+    await loadAll();
+  }
+
+  async function toggleUser(id) {
+    await post('/users/' + id + '/toggle', {});
+    await loadAll();
+  }
+
+  // --- CLASSES ---
+  function renderClasses() {
+    const el = document.getElementById('classList');
+    el.innerHTML = `<table><thead><tr><th>Label</th><th>Students</th><th>Teacher</th></tr></thead><tbody>${
+      classes.map(c => {
+        const count = students.filter(s => s.classId === c.id && s.active !== false).length;
+        const teacher = assignments.find(a => a.classId === c.id && a.type === 'class_teacher');
+        const teacherName = teacher ? users.find(u => u.id === teacher.userId)?.name : '—';
+        return `<tr><td><strong>${esc(c.label)}</strong></td><td>${count}</td><td>${esc(teacherName)}</td></tr>`;
+      }).join('')
+    }</tbody></table>`;
+  }
+
+  async function addClass() {
+    const name = document.getElementById('newClassName').value.trim();
+    const division = document.getElementById('newClassDiv').value.trim();
+    if (!name) return alert('Enter class name');
+    await post('/classes', { name, division });
+    document.getElementById('newClassName').value = '';
+    document.getElementById('newClassDiv').value = '';
+    await loadAll();
+    renderClasses();
+  }
+
+  // --- STUDENTS ---
+  function populateStudentDropdowns() {
+    const opts = classes.map(c => `<option value="${c.id}">${esc(c.label)}</option>`).join('');
+    const optsAll = `<option value="">All Classes</option>` + opts;
+    document.getElementById('newStudentClass').innerHTML = opts;
+    document.getElementById('importClass').innerHTML = opts;
+    document.getElementById('filterStudentClass').innerHTML = optsAll;
+  }
+
+  function loadStudents() {
+    const classId = document.getElementById('filterStudentClass').value;
+    const filtered = classId ? students.filter(s => s.classId === classId) : students;
+    const sorted = filtered.sort((a, b) => a.rollNo - b.rollNo);
+    document.getElementById('studentRows').innerHTML = sorted.map(s => {
+      const cls = classes.find(c => c.id === s.classId);
+      return `<tr>
+        <td>${s.rollNo}</td><td>${esc(s.name)}</td><td>${esc(cls?.label || '')}</td>
+        <td><span class="badge ${s.active !== false ? 'badge-green' : 'badge-red'}">${s.active !== false ? 'Active' : 'Inactive'}</span></td>
+        <td><button class="btn-sm ${s.active !== false ? 'btn-danger' : 'btn-success'}" onclick="toggleStudent('${s.id}')">${s.active !== false ? 'Disable' : 'Enable'}</button></td>
+      </tr>`;
+    }).join('');
+  }
+
+  async function addStudent() {
+    const name = document.getElementById('newStudentName').value.trim();
+    const classId = document.getElementById('newStudentClass').value;
+    const rollNo = document.getElementById('newStudentRoll').value;
+    if (!name) return alert('Enter student name');
+    const body = { name, classId };
+    if (rollNo) body.rollNo = parseInt(rollNo);
+    await post('/students', body);
+    document.getElementById('newStudentName').value = '';
+    document.getElementById('newStudentRoll').value = '';
+    await loadAll();
+    loadStudents();
+  }
+
+  async function toggleStudent(id) {
+    await post('/students/' + id + '/toggle', {});
+    await loadAll();
+    loadStudents();
+  }
+
+  async function importCSV() {
+    const classId = document.getElementById('importClass').value;
+    const csv = document.getElementById('csvData').value.trim();
+    if (!csv) return alert('Paste CSV data');
+    const el = document.getElementById('importResult');
+    el.classList.remove('hidden');
+    try {
+      const prev = await post('/students/import', { classId, csv, preview: true });
+      const errs = prev.errors && prev.errors.length ? `<p style="color:var(--red)">${prev.errors.map(esc).join('<br>')}</p>` : '';
+      if (!prev.validCount) { el.innerHTML = `<p style="color:var(--red)">Nothing to import — check the columns and data.</p>${errs}`; return; }
+      el.innerHTML = `<p style="color:var(--muted)">Preview: ${prev.validCount} ready${prev.errorCount ? ', ' + prev.errorCount + ' will be skipped' : ''}</p>${errs}`;
+      if (!confirm(`Import ${prev.validCount} students?` + (prev.errorCount ? ` (${prev.errorCount} rows have problems and will be skipped)` : ''))) return;
+      const result = await post('/students/import', { classId, csv });
+      el.innerHTML = `<p style="color:var(--green)">Added ${result.added} students</p>` + (result.errors && result.errors.length ? `<p style="color:var(--red)">${result.errors.map(esc).join('<br>')}</p>` : '');
+      document.getElementById('csvData').value = '';
+      await loadAll();
+    } catch (e) { el.innerHTML = `<p style="color:var(--red)">${esc(e.message)}</p>`; }
+  }
+
+  // --- ASSIGN ---
+  function populateAssign() {
+    const ct = users.filter(u => u.role === 'class_teacher' && u.active !== false);
+    const st = users.filter(u => u.role === 'subject_teacher' && u.active !== false);
+    const clsOpts = classes.map(c => `<option value="${c.id}">${esc(c.label)}</option>`).join('');
+    document.getElementById('assignTeacher').innerHTML = ct.map(u => `<option value="${u.id}">${esc(u.name)}</option>`).join('');
+    document.getElementById('assignClass').innerHTML = clsOpts;
+    document.getElementById('subjectTeacher').innerHTML = st.map(u => `<option value="${u.id}">${esc(u.name)}</option>`).join('');
+    document.getElementById('subjectClass').innerHTML = clsOpts;
+    const allTeachers = users.filter(u => u.role !== 'admin' && u.active !== false);
+    document.getElementById('subTeacher').innerHTML = allTeachers.map(u => `<option value="${u.id}">${esc(u.name)}</option>`).join('');
+    document.getElementById('subClass').innerHTML = clsOpts;
+    renderAssignments();
+  }
+
+  function renderAssignments() {
+    document.getElementById('assignRows').innerHTML = assignments.map(a => {
+      const user = users.find(u => u.id === a.userId);
+      const cls = classes.find(c => c.id === a.classId);
+      const typeBadge = a.type === 'class_teacher' ? 'badge-green' : a.type === 'substitute' ? 'badge-yellow' : 'badge-blue';
+      return `<tr>
+        <td>${esc(user?.name) || '?'}</td><td>${esc(cls?.label) || '?'}</td>
+        <td><span class="badge ${typeBadge}">${esc(a.type).replace(/_/g, ' ')}</span>${a.temporary ? ' <span class="badge badge-yellow">temp</span>' : ''}</td>
+        <td>${a.days ? esc(a.days.join(', ')) : 'All'}</td>
+        <td><button class="btn-sm btn-danger" onclick="removeAssignment('${a.id}')">Remove</button></td>
+      </tr>`;
+    }).join('');
+  }
+
+  async function assignClassTeacher() {
+    const r = await post('/assignments', { userId: document.getElementById('assignTeacher').value, classId: document.getElementById('assignClass').value, type: 'class_teacher' });
+    assignments = await f('/assignments'); populateAssign(); alert('Assigned');
+  }
+
+  async function assignSubstitute() {
+    const classId = document.getElementById('subClass').value;
+    const start = document.getElementById('subStart').value;
+    if (!start) return alert('Choose a start date for the substitute');
+    const r = await post('/assignments', {
+      userId: document.getElementById('subTeacher').value, classId, type: 'substitute', temporary: true,
+      startDate: start, endDate: document.getElementById('subEnd').value || null,
+      reason: document.getElementById('subReason').value.trim(),
+    });
+    if (r.overlapsWith && r.overlapsWith.length) alert('Note: ' + r.overlapsWith.join(', ') + ' is also assigned here. Both will appear — review attendance if it conflicts.');
+    document.getElementById('subReason').value = '';
+    assignments = await f('/assignments'); populateAssign(); alert('Substitute assigned');
+  }
+  window.assignSubstitute = assignSubstitute;
+
+  async function assignSubjectTeacher() {
+    const days = document.getElementById('subjectDays').value.trim();
+    const temp = document.getElementById('subjectTemp').value === 'yes';
+    const body = {
+      userId: document.getElementById('subjectTeacher').value,
+      classId: document.getElementById('subjectClass').value,
+      type: 'subject_teacher',
+      days: days ? days.split(',').map(d => d.trim().toLowerCase()) : null,
+      temporary: temp,
+      startDate: temp ? document.getElementById('subjectStart').value : null,
+      endDate: temp ? document.getElementById('subjectEnd').value : null,
+    };
+    await post('/assignments', body);
+    assignments = await f('/assignments'); populateAssign(); alert('Assigned');
+  }
+
+  async function removeAssignment(id) {
+    if (!confirm('Remove this assignment?')) return;
+    await ATT.conn.request('/api/assignments/' + id, { method: 'DELETE' });
+    assignments = await f('/assignments'); renderAssignments();
+  }
+
+  // --- ENROLL ---
+  function populateEnroll() {
+    document.getElementById('enrollUser').innerHTML = users.map(u =>
+      `<option value="${u.id}">${esc(u.name)} (${u.role.replace(/_/g, ' ')})</option>`
+    ).join('');
+  }
+
+  async function generateQR(userId) {
+    const uid = userId || document.getElementById('enrollUser').value;
+    const data = await ATT.conn.request('/api/invite/' + uid, { method: 'POST' });
+    const container = document.getElementById('qrResult');
+    container.classList.remove('hidden');
+    container.innerHTML = `
+      <p style="margin-bottom:8px;color:var(--muted)">Scan QR or enter code on the teacher's device</p>
+      <img src="${data.qr}" alt="QR">
+      <p style="margin-top:12px;font-size:2rem;font-weight:700;letter-spacing:.3em">${data.code}</p>
+      <p style="font-size:.75rem;color:var(--muted)">One-time pairing code</p>
+    `;
+  }
+
+  function quickEnroll(userId) {
+    showTab('enroll', document.querySelectorAll('.tab')[5]);
+    populateEnroll();
+    document.getElementById('enrollUser').value = userId;
+    generateQR(userId);
+  }
+
+  // --- DEVICES ---
+  async function loadDevices() {
+    devices = await f('/devices');
+    document.getElementById('deviceRows').innerHTML = devices.map(d => `<tr>
+      <td>${esc(d.userName || '?')}</td>
+      <td>${(d.userRole || '').replace(/_/g, ' ')}</td>
+      <td style="font-size:.7rem;color:var(--muted)">${d.deviceId.slice(0, 12)}…</td>
+      <td><span class="badge ${d.revoked ? 'badge-red' : 'badge-green'}">${d.revoked ? 'Revoked' : 'Active'}</span></td>
+      <td>${d.revoked
+        ? `<button class="btn-sm btn-success" onclick="unrevokeDevice('${d.deviceId}')">Restore</button>`
+        : `<button class="btn-sm btn-danger" onclick="revokeDevice('${d.deviceId}')">Revoke</button>`}</td>
+    </tr>`).join('');
+  }
+
+  async function revokeDevice(id) { await post('/revoke/' + id, {}); loadDevices(); }
+  async function unrevokeDevice(id) { await post('/unrevoke/' + id, {}); loadDevices(); }
+
+  // --- REPORTS ---
+  function populateReportDropdowns() {
+    document.getElementById('reportClass').innerHTML = classes.map(c => `<option value="${c.id}">${esc(c.label)}</option>`).join('');
+    document.getElementById('reportDate').value = ATT.localDate();
+    changeReport();
+  }
+
+  function changeReport() {
+    const type = document.getElementById('reportType').value;
+    const dateCol = document.getElementById('reportDateCol');
+    const monthCol = document.getElementById('reportMonthCol');
+    const exportLink = document.getElementById('exportLink');
+
+    dateCol.classList.add('hidden');
+    monthCol.classList.add('hidden');
+    exportLink.classList.add('hidden');
+
+    if (type === 'daily' || type === 'weekly' || type === 'missing' || type === 'absentees') {
+      dateCol.classList.remove('hidden');
+      if (!document.getElementById('reportDate').value) {
+        document.getElementById('reportDate').value = ATT.localDate();
+      }
+    } else if (type === 'monthly') {
+      monthCol.classList.remove('hidden');
+      if (!document.getElementById('reportMonth').value) {
+        document.getElementById('reportMonth').value = ATT.localDate().slice(0, 7);
+      }
+    }
+
+    loadReportData();
+  }
+
+  async function loadReportData() {
+    const type = document.getElementById('reportType').value;
+    const classId = document.getElementById('reportClass').value;
+    const date = document.getElementById('reportDate').value;
+    const month = document.getElementById('reportMonth').value;
+    const el = document.getElementById('reportContent');
+    const exportLink = document.getElementById('exportLink');
+
+    if (type === 'missing') {
+      if (!date) return;
+      el.innerHTML = '<p style="color:var(--muted)">Loading...</p>';
+      try {
+        const data = await f('/reports/missing/' + date);
+        if (!data.missing.length) { el.innerHTML = '<p style="color:var(--green)">All classes have been marked! ✓</p>'; return; }
+        el.innerHTML = `<table><thead><tr><th>Class</th><th>Marked</th><th>Total</th><th>Teacher</th></tr></thead><tbody>${
+          data.missing.map(m => `<tr><td>${esc(m.classLabel)}</td><td>${m.marked}</td><td>${m.total}</td><td>${esc(m.teacherName)}</td></tr>`).join('')
+        }</tbody></table>`;
+      } catch { el.innerHTML = '<p style="color:var(--red)">Error</p>'; }
+      return;
+    }
+
+    if (type === 'absentees') {
+      if (!date) return;
+      el.innerHTML = '<p style="color:var(--muted)">Loading...</p>';
+      try {
+        const data = await f('/reports/absentees/' + date);
+        if (!data.absentees.length) { el.innerHTML = '<p style="color:var(--green)">No absentees! ✓</p>'; return; }
+        el.innerHTML = `<table><thead><tr><th>Class</th><th>#</th><th>Name</th></tr></thead><tbody>${
+          data.absentees.map(a => `<tr><td>${esc(a.classLabel)}</td><td>${a.rollNo}</td><td>${esc(a.name)}</td></tr>`).join('')
+        }</tbody></table>`;
+      } catch { el.innerHTML = '<p style="color:var(--red)">Error</p>'; }
+      return;
+    }
+
+    if (!classId) return;
+    el.innerHTML = '<p style="color:var(--muted)">Loading report...</p>';
+
+    try {
+      if (type === 'daily') {
+        if (!date) return;
+        const data = await f('/reports/daily/' + classId + '/' + date);
+        el.innerHTML = `
+          <div class="card" style="margin-bottom:8px">
+            <div class="stat-row"><span>Total</span><span class="stat-val">${data.stats.total}</span></div>
+            <div class="stat-row"><span>Present</span><span class="stat-val" style="color:var(--green)">${data.stats.present}</span></div>
+            <div class="stat-row"><span>Absent</span><span class="stat-val" style="color:var(--red)">${data.stats.absent}</span></div>
+            <div class="stat-row"><span>Late</span><span class="stat-val" style="color:var(--yellow)">${data.stats.late}</span></div>
+            <div class="stat-row"><span>Leave</span><span class="stat-val" style="color:var(--blue)">${data.stats.leave}</span></div>
+            <div class="stat-row"><span>Not Marked</span><span class="stat-val">${data.stats.notMarked}</span></div>
+          </div>
+          <table><thead><tr><th>#</th><th>Name</th><th>Status</th><th>Note</th></tr></thead><tbody>${
+            data.rows.map(r => {
+              const badge = r.status === 'present' ? 'badge-green' : r.status === 'absent' ? 'badge-red' : r.status === 'late' ? 'badge-yellow' : r.status === 'leave' ? 'badge-blue' : '';
+              const displayStatus = r.status === 'not_marked' ? 'Not Marked' : r.status.toUpperCase();
+              return `<tr>
+                <td>${r.rollNo}</td>
+                <td>${esc(r.name)}</td>
+                <td><span class="badge ${badge}">${displayStatus}</span></td>
+                <td style="font-size:0.75rem;color:var(--muted)">${esc(r.note || '')}</td>
+              </tr>`;
+            }).join('')
+          }</tbody></table>`;
+      } else if (type === 'weekly') {
+        if (!date) return;
+        const dateObj = new Date(date);
+        const day = dateObj.getDay();
+        const diffToMon = dateObj.getDate() - day + (day === 0 ? -6 : 1);
+        const mon = ATT.localDate(new Date(dateObj.setDate(diffToMon)));
+        const sun = ATT.localDate(new Date(dateObj.setDate(diffToMon + 6)));
+
+        const data = await f(`/reports/weekly/${classId}?start=${mon}&end=${sun}`);
+        if (!data.rows.length) { el.innerHTML = '<p style="color:var(--muted)">No records</p>'; return; }
+
+        const headers = data.dates.map(d => {
+          const dayName = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][new Date(d).getDay()];
+          const dayNum = d.split('-')[2];
+          return `<th style="text-align:center;font-size:0.7rem;padding:4px">${dayName}<br>${dayNum}</th>`;
+        }).join('');
+
+        el.innerHTML = `<table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Name</th>
+              ${headers}
+              <th style="text-align:center">P/Tot</th>
+            </tr>
+          </thead>
+          <tbody>${data.rows.map(r => {
+            const dayCells = data.dates.map(d => {
+              const st = r.days[d] || '-';
+              let char = '-';
+              let color = 'var(--muted)';
+              if (st === 'present') { char = 'P'; color = 'var(--green)'; }
+              else if (st === 'absent') { char = 'A'; color = 'var(--red)'; }
+              else if (st === 'late') { char = 'L'; color = 'var(--yellow)'; }
+              else if (st === 'leave') { char = 'V'; color = 'var(--blue)'; }
+              return `<td style="text-align:center;color:${color};font-weight:bold;padding:4px">${char}</td>`;
+            }).join('');
+            return `<tr>
+              <td>${r.rollNo}</td>
+              <td style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px">${esc(r.name)}</td>
+              ${dayCells}
+              <td style="text-align:center">${r.present}/${r.total}</td>
+            </tr>`;
+          }).join('')}</tbody>
+        </table>`;
+      } else if (type === 'monthly') {
+        if (!month) return;
+        const data = await f(`/reports/monthly/${classId}/${month}`);
+        if (!data.rows.length) { el.innerHTML = '<p style="color:var(--muted)">No records</p>'; return; }
+        el.innerHTML = `<table>
+          <thead><tr><th>#</th><th>Name</th><th>P</th><th>A</th><th>L/V</th><th>%</th></tr></thead>
+          <tbody>${data.rows.map(r => `<tr>
+            <td>${r.rollNo}</td>
+            <td>${esc(r.name)}</td>
+            <td><span class="badge badge-green">${r.present}</span></td>
+            <td><span class="badge badge-red">${r.absent}</span></td>
+            <td><span class="badge badge-blue">${r.leave}</span></td>
+            <td><strong>${r.percentage}%</strong></td>
+          </tr>`).join('')}</tbody>
+        </table>`;
+      } else if (type === 'summary') {
+        const data = await f('/attendance-summary/' + classId);
+        if (!data.summary.length) { el.innerHTML = '<p style="color:var(--muted)">No data</p>'; return; }
+        el.innerHTML = `<table>
+          <thead><tr><th>#</th><th>Name</th><th>P</th><th>A</th><th>%</th></tr></thead>
+          <tbody>${data.summary.map(s => `<tr>
+            <td>${s.rollNo}</td>
+            <td>${esc(s.name)}</td>
+            <td><span class="badge badge-green">${s.present}</span></td>
+            <td><span class="badge badge-red">${s.absent}</span></td>
+            <td>${s.percentage}%</td>
+          </tr>`).join('')}</tbody>
+        </table>`;
+        exportLink.onclick = () => downloadFile('/api/reports/export/' + classId + '/summary', 'attendance-summary.csv');
+        exportLink.classList.remove('hidden');
+      }
+      lucide.createIcons();
+    } catch { el.innerHTML = '<p style="color:var(--red)">Failed to load report</p>'; }
+  }
+
+  // --- BACKUP ---
+  async function loadBackupInfo() {
+    try {
+      const [status, list] = await Promise.all([f('/backup/status'), f('/backup/list')]);
+      document.getElementById('backupStatus').innerHTML = `
+        <div class="stat-row"><span>Last Backup</span><span class="stat-val">${status.lastBackup ? new Date(status.lastBackup).toLocaleString('en-IN') : 'Never'}</span></div>
+        <div class="stat-row"><span>Total Backups</span><span class="stat-val">${status.backupCount}</span></div>
+      `;
+      document.getElementById('backupList').innerHTML = list.length
+        ? `<table><thead><tr><th>File</th><th>Size</th><th>Date</th></tr></thead><tbody>${
+          list.slice(0, 10).map(b => `<tr><td style="font-size:.75rem">${esc(b.name)}</td><td>${(b.size / 1024).toFixed(1)} KB</td><td>${new Date(b.date).toLocaleString('en-IN')}</td></tr>`).join('')
+        }</tbody></table>` : '<p style="color:var(--muted)">No backups yet</p>';
+    } catch { document.getElementById('backupStatus').innerHTML = '<p style="color:var(--red)">Cannot load backup info</p>'; }
+  }
+
+  window.createBackupNow = async function () {
+    try { await post('/backup/create', {}); alert('Backup created.'); loadBackupInfo(); }
+    catch (e) { alert('Backup failed: ' + e.message); }
+  };
+
+  async function restoreBackup(input) {
+    if (!input.files.length) return;
+    if (!confirm('⚠️ This will replace ALL current data with the backup. A backup of current data will be saved first. Continue?')) return;
+    let data;
+    try { data = JSON.parse(await input.files[0].text()); }
+    catch { return alert('Restore failed: that file is not a valid backup (not readable JSON).'); }
+    try {
+      const result = await ATT.conn.request('/api/backup/restore', { method: 'POST', body: data });
+      alert(`Restored! ${result.users} users, ${result.students} students, ${result.classes} classes`);
+      await loadAll();
+    } catch (e) { alert('Restore failed: ' + e.message); }
+  }
+
+  // --- SETTINGS ---
+  async function loadSettings() {
+    try {
+      const s = await f('/settings');
+      document.getElementById('setSchoolName').value = s.schoolName || '';
+      document.getElementById('setAcademicYear').value = s.academicYear || '';
+      document.getElementById('setLockHours').value = s.lockAfterHours || '';
+      loadHolidays();
+    } catch {}
+  }
+
+  async function loadHolidays() {
+    const el = document.getElementById('holidayList');
+    try {
+      const list = await f('/holidays');
+      el.innerHTML = list.length
+        ? list.sort((a, b) => a.date.localeCompare(b.date)).map(h => `<div class="stat-row"><span>${esc(h.date)} — ${esc(h.name)}</span><button class="btn-sm btn-danger" onclick="removeHoliday('${esc(h.date)}')">Remove</button></div>`).join('')
+        : '<p style="color:var(--muted);font-size:.8rem">No holidays added.</p>';
+    } catch { el.innerHTML = ''; }
+  }
+  window.addHoliday = async function () {
+    const date = document.getElementById('holDate').value;
+    if (!date) return alert('Choose a date');
+    await post('/holidays', { date, name: document.getElementById('holName').value.trim() || 'Holiday' });
+    document.getElementById('holName').value = '';
+    loadHolidays();
+  };
+  window.removeHoliday = async function (date) {
+    await ATT.conn.request('/api/holidays/' + date, { method: 'DELETE' });
+    loadHolidays();
+  };
+
+  async function saveSettings() {
+    await ATT.conn.request('/api/settings', {
+      method: 'PUT',
+      body: {
+        schoolName: document.getElementById('setSchoolName').value,
+        academicYear: document.getElementById('setAcademicYear').value,
+        lockAfterHours: parseInt(document.getElementById('setLockHours').value) || 0,
+      },
+    });
+    alert('Settings saved');
+    await loadAll();
+  }
+
+  lucide.createIcons();
+</script>
+</body>
+</html>

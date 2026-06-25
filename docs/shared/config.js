@@ -3,7 +3,7 @@
 (function () {
   const ATT = (window.ATT = window.ATT || {});
 
-  ATT.VERSION = '3.0.0';
+  ATT.VERSION = '3.1.0';
 
   // Pure P2P: no tunnel, no public HTTP server. Remote devices reach the office PC over a
   // WebRTC DataChannel. The office PC registers ONE stable peer id on the free PeerJS broker
