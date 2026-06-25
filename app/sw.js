@@ -1,7 +1,7 @@
 // ponytail: app-shell cache, network-first for API. Cache name carries the app version so
 // every deploy ships fresh JS (RC-5). Shared modules + vendored lucide are precached so the
 // app boots fully offline (RC-6).
-const CACHE = 'att-2.3.0';
+const CACHE = 'att-2.3.1';
 const SHELL = [
   './', 'index.html', 'style.css', 'app.js', 'manifest.json',
   '../shared/config.js', '../shared/connection.js', '../shared/pairing.js', '../shared/vendor/lucide.min.js',
